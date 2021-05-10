@@ -1,17 +1,17 @@
 module Parser where
 
-import Text.Parsec.String(Parser)
-import Text.Parsec(parse,try)
-import Text.Parsec.Char (oneOf, char, digit, satisfy)
-import Text.Parsec.Combinator (many1, choice, chainl1)
+import Text.Parsec.String
+import Text.Parsec
+import Text.Parsec.Char
+import Text.Parsec.Combinator
 import Text.Parsec.Error
 import Data.Char (isLetter, isDigit)
 import Control.Monad(void)
-import Control.Applicative ((<|>), many)
+-- import Control.Applicative ((<|>))
 
 --Terminals
 
-data Relator = EQ | NEQ | LEQ | GEQ | LE | GE deriving (Show, Eq)
+data Relator = EQQ | NEQ | LEQ | GEQ | LE | GE deriving (Show, Eq)
 data Operator = Plus | Minus | Times | Divide deriving (Show, Eq)
 -- data Digit = Zero | One | Two | Three | Four | Five | Six | Seven | Eight | Nine deriving (Show, Eq, Enum)
 -- data Letter = A | B | C | D | E | F | G | H | I | J | K | L | M | N | O | P | Q | R | S | T | U | V | W | X | Y | Z deriving (Show, Eq)
@@ -29,8 +29,8 @@ data Expression = Pos ExpressionNested | Neg ExpressionNested | Term ExpressionN
 newtype Return = Return Var deriving (Show, Eq)
 data Boolean = BExp Expression Relator Expression deriving (Show, Eq)
 data Assign = Ass Var Expression deriving (Show, Eq)
-data If = If Boolean Statement | Elif Boolean Statement Statement deriving (Show, Eq)
-data While = While Boolean Statement deriving (Show, Eq)
+data If = If Boolean Statements | Elif Boolean Statements Statements deriving (Show, Eq)
+data While = While Boolean Statements deriving (Show, Eq)
 data Statement = WSt While | ISt If | ASt Assign deriving (Show, Eq)
 data Statements = Empty | St Statement Statements deriving (Show, Eq)
 data Procedure = Proc Statements Return deriving (Show, Eq)
@@ -107,7 +107,7 @@ expTerm:: Parser Expression
 expTerm = do
       x <- lexeme expNestParse
       o <- lexeme operatorParse
-      y <- expNestParse
+      y <- lexeme expNestParse
       return $ Term x o y
 
 bracesE :: Parser ExpressionNested
@@ -118,13 +118,120 @@ bracesE = do
     return $ Exp e
 
 expParse :: Parser Expression
-expParse = choice [try expTerm, expPos] <|>  expNeg
+expParse = choice [try $ lexeme expTerm, lexeme expNeg, lexeme expPos]
+
+expParseWithEOF :: Parser Expression
+expParseWithEOF = do
+                whitespace
+                x <- lexeme expParse
+                eof
+                return x
 
 expNestParse :: Parser ExpressionNested
-expNestParse = bracesE <|> varE <|> numE
+expNestParse = lexeme bracesE <|> lexeme varE <|> lexeme numE
+
 
 catch:: Either ParseError Expression -> String
 catch (Left err) = show err
 catch (Right expr) = show expr
 
+geqP :: Parser Relator
+geqP = do
+      x <- string ">="
+      return GEQ
+
+leqP :: Parser Relator
+leqP = do
+      x <- string "<="
+      return LEQ
+
+eqP :: Parser Relator
+eqP = do
+      x <- string "=="
+      return EQQ
+
+neqP :: Parser Relator
+neqP = do
+  x <- string "!="
+  return NEQ
+
+leP :: Parser Relator
+leP = do
+  x <- string "<"
+  return LE
+
+geP :: Parser Relator
+geP = do
+  x <- string ">"
+  return GE
+
+relatorParse :: Parser Relator
+relatorParse = try geqP <|> try leqP <|> eqP <|> neqP <|> leP <|> geP
+
+booleanParse :: Parser Boolean
+booleanParse = do
+            x <- lexeme expParse
+            r <- lexeme relatorParse
+            y <- lexeme expParse
+            return $ BExp x r y
+
+assignParse :: Parser Assign
+assignParse = do
+            x <- lexeme $ variable
+            y <- lexeme $ char '='
+            z <- lexeme $ expParse
+            semi <- lexeme $ char ';'
+            return $ Ass x z
+
+ifParse' :: Parser If
+ifParse' = do
+      x <- lexeme $ string "if"
+      y <- lexeme $ betweenParens booleanParse
+      z <- lexeme $ betweenParensCurly statementsParse
+      return $ If y z
+
+elifParse :: Parser If
+elifParse = do
+      x <- lexeme $ string "if"
+      y <- lexeme $ betweenParens booleanParse
+      z <- lexeme $ betweenParensCurly statementsParse
+      el <- lexeme $ string "else"
+      elS <- lexeme $ betweenParensCurly statementsParse
+      return $ Elif y z elS
+
+ifParse :: Parser If
+ifParse = try elifParse <|> ifParse'
+
+whileParse :: Parser While
+whileParse = do
+      x <- lexeme $ string "while"
+      y <- lexeme $ betweenParens booleanParse
+      z <- lexeme $ betweenParensCurly statementsParse
+      return $ While y z
+
+statementsParseRec :: Parser Statements
+statementsParseRec = do
+            x <- lexeme statementParse
+            y <- lexeme statementsParse
+            return $ St x y
+
+statementsParse :: Parser Statements
+statementsParse = statementsParseRec
+
+statementParse :: Parser Statement
+statementParse = fmap WSt whileParse <|> fmap ISt ifParse <|> fmap ASt assignParse
+
+symbol :: Char -> Parser Char
+symbol c = lexeme $ char c
+
+betweenParens :: Parser a -> Parser a
+betweenParens p = between (symbol '(') (symbol ')') p
+
+betweenParensCurly :: Parser a -> Parser a
+betweenParensCurly p = between (symbol '{') (symbol '}') p
+
 --Test: "1 +(3 + 4)"
+
+--- exp := var | int | -var | -int | (-exp) | (exp op exp)
+
+-- lookAhead $ satisfy (\a -> a == '(') <|>
