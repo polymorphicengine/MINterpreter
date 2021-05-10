@@ -1,10 +1,10 @@
 module Parser where
 
-import Text.Parsec.String
-import Text.Parsec
-import Text.Parsec.Char
-import Text.Parsec.Combinator
-import Text.Parsec.Error
+import Text.Parsec.String(Parser)
+import Text.Parsec(many, satisfy, try, (<|>), parse)
+import Text.Parsec.Char(char, oneOf, digit, string)
+import Text.Parsec.Combinator(choice, eof, between, many1)
+import Text.Parsec.Error(ParseError)
 import Data.Char (isLetter, isDigit)
 import Control.Monad(void)
 -- import Control.Applicative ((<|>))
