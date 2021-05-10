@@ -32,7 +32,7 @@ data Assign = Ass Var Expression deriving (Show, Eq)
 data If = If Boolean Statements | Elif Boolean Statements Statements deriving (Show, Eq)
 data While = While Boolean Statements deriving (Show, Eq)
 data Statement = WSt While | ISt If | ASt Assign deriving (Show, Eq)
-data Statements = Empty | St Statement Statements deriving (Show, Eq)
+data Statements = Eps | St Statement Statements deriving (Show, Eq)
 data Procedure = Proc Statements Return deriving (Show, Eq)
 data Arguments = Arg Var | Args Var Arguments deriving (Show, Eq)
 data Program = Prog Arguments Procedure deriving (Show, Eq)
@@ -216,7 +216,7 @@ statementsParseRec = do
             return $ St x y
 
 statementsParse :: Parser Statements
-statementsParse = statementsParseRec
+statementsParse = statementsParseRec <|> emptyParse
 
 statementParse :: Parser Statement
 statementParse = fmap WSt whileParse <|> fmap ISt ifParse <|> fmap ASt assignParse
@@ -229,6 +229,13 @@ betweenParens p = between (symbol '(') (symbol ')') p
 
 betweenParensCurly :: Parser a -> Parser a
 betweenParensCurly p = between (symbol '{') (symbol '}') p
+
+emptyParse :: Parser Statements
+emptyParse = return Eps
+
+returnParse :: Parser Return
+returnParse = do
+      x <- lexeme $ string "return"
 
 --Test: "1 +(3 + 4)"
 
