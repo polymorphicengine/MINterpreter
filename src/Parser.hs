@@ -125,7 +125,7 @@ expParseWithEOF = do
 expNestParse :: Parser ExpressionNested
 expNestParse = lexeme bracesE <|> lexeme varE <|> lexeme numE
 
-catch:: Either ParseError Expression -> String
+catch:: Show a => Either ParseError a -> String
 catch (Left err) = show err
 catch (Right expr) = show expr
 

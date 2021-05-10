@@ -6,6 +6,6 @@ import Text.Parsec
 
 main :: IO ()
 main =  do
-  putStrLn "Enter an expression:"
+  putStrLn "Enter a mini program:"
   x <- getLine
   putStrLn $ catch $ parse programParseEOF "" x
