@@ -270,7 +270,6 @@ programParseEOF = do
 
 -- lookAhead $ satisfy (\a -> a == '(') <|>
 
-
 -- "procedure main ( a , b ) {c = a - b; return c ; }"
 -- "procedure main ( a , b ) {if (a <  b) {c =  a  ;} else    {c =b  ;  }   return c ;}"
 -- procedure main (a , b) {r = b ; if  ( a != 0) {while (b != 0) { if ( a < b) {b = b - a ;} else {a = a - b ;} } r = a ; } return r ;}

@@ -8,4 +8,4 @@ main :: IO ()
 main =  do
   putStrLn "Enter an expression:"
   x <- getLine
-  putStrLn $ catch $ parse expParse "" x
+  putStrLn $ catch $ parse programParseEOF "" x
