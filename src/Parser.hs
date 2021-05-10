@@ -37,13 +37,8 @@ data Procedure = Proc Statements Return deriving (Show, Eq)
 data Arguments = Arg Var | Args Var Arguments deriving (Show, Eq)
 data Program = Prog Arguments Procedure deriving (Show, Eq)
 
--- "1/(2+(-3))"
+--helper functions
 
--- digitParser :: Parser Digit
-
--- variAbLE44
-
--- fx_55_asd9
 whitespace :: Parser ()
 whitespace = void $ many $ oneOf " \n\t"
 
@@ -72,7 +67,7 @@ numE = do
 variable :: Parser Var
 variable = do
     fc <- firstChar
-    rest <- many1 nonFirstChar
+    rest <- many nonFirstChar
     return $ Var (fc:rest)
   where
     firstChar = satisfy (\a -> isSmallLetter a)
@@ -129,7 +124,6 @@ expParseWithEOF = do
 
 expNestParse :: Parser ExpressionNested
 expNestParse = lexeme bracesE <|> lexeme varE <|> lexeme numE
-
 
 catch:: Either ParseError Expression -> String
 catch (Left err) = show err
@@ -216,10 +210,10 @@ statementsParseRec = do
             return $ St x y
 
 statementsParse :: Parser Statements
-statementsParse = statementsParseRec <|> emptyParse
+statementsParse = try statementsParseRec <|> emptyParse
 
 statementParse :: Parser Statement
-statementParse = fmap WSt whileParse <|> fmap ISt ifParse <|> fmap ASt assignParse
+statementParse = (try $ fmap WSt whileParse) <|> (try $ fmap ISt ifParse) <|> fmap ASt assignParse
 
 symbol :: Char -> Parser Char
 symbol c = lexeme $ char c
@@ -236,9 +230,47 @@ emptyParse = return Eps
 returnParse :: Parser Return
 returnParse = do
       x <- lexeme $ string "return"
+      v <- lexeme $ variable
+      semi <- lexeme $ char ';'
+      return $ Return v
+
+argVarParseRec :: Parser Arguments
+argVarParseRec = do
+            x <- lexeme $ variable
+            col <- lexeme $ char ','
+            xs <- lexeme $ argVarParse
+            return $ Args x xs
+
+argVarParse :: Parser Arguments
+argVarParse = try argVarParseRec <|> (fmap Arg variable)
+
+procParse :: Parser Procedure
+procParse = do
+      stat <- lexeme $ statementsParse
+      ret <- lexeme $ returnParse
+      return $ Proc stat ret
+
+programParse :: Parser Program
+programParse = do
+      key <- lexeme $ string "procedure main"
+      args <- lexeme $ betweenParens argVarParse
+      body <- lexeme $ betweenParensCurly procParse
+      return $ Prog args body
+
+programParseEOF :: Parser Program
+programParseEOF = do
+        whitespace
+        prog <- lexeme $ programParse
+        eof
+        return prog
 
 --Test: "1 +(3 + 4)"
 
 --- exp := var | int | -var | -int | (-exp) | (exp op exp)
 
 -- lookAhead $ satisfy (\a -> a == '(') <|>
+
+
+-- "procedure main ( a , b ) {c = a - b; return c ; }"
+-- "procedure main ( a , b ) {if (a <  b) {c =  a  ;} else    {c =b  ;  }   return c ;}"
+-- procedure main (a , b) {r = b ; if  ( a != 0) {while (b != 0) { if ( a < b) {b = b - a ;} else {a = a - b ;} } r = a ; } return r ;}
