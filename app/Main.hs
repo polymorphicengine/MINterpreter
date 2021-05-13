@@ -1,6 +1,7 @@
 module Main where
 
-import Parser
+import ParseMINI
+import InterpretMINI
 import Text.Parsec
 
 main :: IO ()

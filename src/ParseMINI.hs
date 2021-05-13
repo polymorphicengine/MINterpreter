@@ -1,4 +1,4 @@
-module Parser where
+module ParPseMINI where
 
 import Text.Parsec.String(Parser)
 import Text.Parsec(many, satisfy, try, (<|>), parse)
@@ -22,13 +22,14 @@ data Operator = Plus | Minus | Times | Divide deriving (Show, Eq)
 -- data Ident_Rest = Eps | Rest Ident_Char Ident_Rest deriving (Show, Eq)
 -- data Ident = Ident Letter Ident_Rest deriving (Show, Eq)
 -- newtype Ident = Ident String deriving (Show, Eq)
-newtype Var = Var String deriving (Show, Eq)
+type Name = String
+newtype Var = Var Name deriving (Show, Eq)
 -- data Number = Digit Digit | Number Digit Number deriving (Show, Eq)
 data ExpressionNested = ENum Integer | EVar Var | Exp Expression deriving (Show, Eq)
 data Expression = Pos ExpressionNested | Neg ExpressionNested | Term ExpressionNested Operator ExpressionNested deriving (Show, Eq)
 newtype Return = Return Var deriving (Show, Eq)
 data Boolean = BExp Expression Relator Expression deriving (Show, Eq)
-data Assign = Ass Var Expression deriving (Show, Eq)
+data Assign = Ass Var Expression deriving (Showq)
 data If = If Boolean Statements | Elif Boolean Statements Statements deriving (Show, Eq)
 data While = While Boolean Statements deriving (Show, Eq)
 data Statement = WSt While | ISt If | ASt Assign deriving (Show, Eq)
