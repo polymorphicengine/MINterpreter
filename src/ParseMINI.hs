@@ -126,9 +126,6 @@ expParseWithEOF = do
 expNestParse :: Parser ExpressionNested
 expNestParse = lexeme bracesE <|> lexeme varE <|> lexeme numE
 
-catch:: Show a => Either ParseError a -> String
-catch (Left err) = show err
-catch (Right expr) = show expr
 
 geqP :: Parser Relator
 geqP = do
@@ -265,6 +262,12 @@ programParseEOF = do
         eof
         return prog
 
+catch:: Either ParseError a -> a
+catch (Left err) = error (show err)
+catch (Right expr) = expr
+
+
+
 --Test: "1 +(3 + 4)"
 
 --- exp := var | int | -var | -int | (-exp) | (exp op exp)
@@ -273,4 +276,4 @@ programParseEOF = do
 
 -- "procedure main ( a , b ) {c = a - b; return c ; }"
 -- "procedure main ( a , b ) {if (a <  b) {c =  a  ;} else    {c =b  ;  }   return c ;}"
--- procedure main (a , b) {r = b ; if  ( a != 0) {while (b != 0) { if ( a < b) {b = b - a ;} else {a = a - b ;} } r = a ; } return r ;}
+-- procedure main (a , b) {r = b ; if  ( a != 0) {while (b != 0) { if ( a <= b) {b = b - a ;} else {a = a - b ;} } r = a ; } return r ;}
