@@ -7,7 +7,7 @@ import System.Environment(getArgs)
 
 
 main :: IO ()
-main =  do
+main = do
   args <- getArgs
   let path = args!!0
   let inputs = map read (tail args) :: [Integer]
