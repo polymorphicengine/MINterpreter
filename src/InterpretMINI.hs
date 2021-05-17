@@ -3,10 +3,7 @@ module InterpretMINI where
 import ParseMINI
 
 import Control.Monad.Identity
-import Control.Monad.Except
-import Control.Monad.Reader
 import Control.Monad.State
-import Control.Monad.Writer
 
 import Data.Maybe
 import qualified Data.Map as Map
@@ -16,56 +13,56 @@ type Env = Map.Map Name Value
 
 type StateID = StateT Env Identity
 
-evalExpNest:: Env -> ExpressionNested -> StateID Value
-evalExpNest env (ENum i) = return i
-evalExpNest env (EVar (Var name)) = case Map.lookup name env of
-                                          Nothing -> error "undefined variable call"
-                                          (Just val) -> return val
-evalExpNest env (Exp expr) = evalExp env expr
+expNestEval:: ExpressionNested -> StateID Value
+expNestEval (ENum i) = return i
+expNestEval (EVar (Var name)) = do
+                          env <- get
+                          case Map.lookup name env of
+                                    Nothing -> error "undefined variable call"
+                                    (Just val) -> return val
+expNestEval (Exp expr) = expEval expr
 
-evalExp :: Env -> Expression -> StateID Value
-evalExp env (Pos expr) = evalExpNest env expr
-evalExp env (Neg expr) =  do
-                num <- evalExpNest env expr
+expEval :: Expression -> StateID Value
+expEval (Pos expr) = expNestEval expr
+expEval (Neg expr) =  do
+                num <- expNestEval expr
                 return (- num)
-evalExp env (Term exp1 op exp2) = do
-                            num1 <- evalExpNest env exp1
-                            num2 <- evalExpNest env exp2
-                            return $ (getOp op) num1 num2
-                            where getOp Plus = (+)
-                                  getOp Minus = (-)
-                                  getOp Times = (*)
-                                  getOp Divide = (div)
+expEval (Term exp1 op exp2) = do
+                        num1 <- expNestEval exp1
+                        num2 <- expNestEval exp2
+                        return $ (getOp op) num1 num2
+                        where getOp Plus = (+)
+                              getOp Minus = (-)
+                              getOp Times = (*)
+                              getOp Divide = (div)
 
-evalBool :: Env -> Boolean -> StateID Bool
-evalBool env (BExp exp1 rel exp2) = do
-                            num1 <- evalExp env exp1
-                            num2 <- evalExp env exp2
-                            return $ (getRel rel) num1 num2
-                            where getRel GEQ = (>=)
-                                  getRel LEQ = (<=)
-                                  getRel EQQ = (==)
-                                  getRel NEQ = (/=)
-                                  getRel LE = (<)
-                                  g1etRel GE = (>)
+boolEval :: Boolean -> StateID Bool
+boolEval (BExp exp1 rel exp2) = do
+                      num1 <- expEval exp1
+                      num2 <- expEval exp2
+                      return $ (getRel rel) num1 num2
+                      where getRel GEQ = (>=)
+                            getRel LEQ = (<=)
+                            getRel EQQ = (==)
+                            getRel NEQ = (/=)
+                            getRel LE = (<)
+                            g1etRel GE = (>)
 
 assignEval :: Assign -> StateID ()
 assignEval (Ass (Var name) expr) = do
-                              env <- get
-                              num <- evalExp env expr
-                              put (Map.insert name num env)
+                            env <- get
+                            num <- expEval expr
+                            put (Map.insert name num env)
 
 ifEval:: If -> StateID ()
 ifEval (If boolExp stats) = do
-                      env <- get
-                      bool <- evalBool env boolExp
+                      bool <- boolEval boolExp
                       if bool then
                         statsEval stats
                       else
                         return ()
 ifEval (Elif boolExp stats1 stats2) = do
-                      env <- get
-                      bool <- evalBool env boolExp
+                      bool <- boolEval boolExp
                       if bool then
                         statsEval stats1
                       else
@@ -73,8 +70,7 @@ ifEval (Elif boolExp stats1 stats2) = do
 
 whileEval:: While -> StateID ()
 whileEval w@(While boolExp stats) = do
-                      env <- get
-                      bool <- evalBool env boolExp
+                      bool <- boolEval boolExp
                       if bool then
                         do
                           statsEval stats
@@ -93,16 +89,17 @@ statsEval (St stat stats) = do
                         statEval stat
                         statsEval stats
 
-returnEval :: Env -> Return -> StateID Value
-returnEval env (Return (Var name)) = case Map.lookup name env of
-                                          Nothing -> error "undefined variable call"
-                                          (Just val) -> return val
+returnEval :: Return -> StateID Value
+returnEval (Return (Var name)) = do
+                          env <- get
+                          case Map.lookup name env of
+                                Nothing -> error "undefined variable call"
+                                (Just val) -> return val
 
 procedureEval:: Procedure -> StateID Value
 procedureEval (Proc stats ret) = do
                               statsEval stats
-                              env' <- get
-                              returnEval env' ret
+                              returnEval ret
 
 argsToList:: Arguments -> [Var]
 argsToList (Arg v) = [v]
@@ -115,7 +112,11 @@ argumentEval args input | length input /= length argList = error "length of inpu
                       where argList = argsToList args
 
 runProgram :: [Integer] -> Program -> Value
-runProgram inputs (Prog args procedure) = runIdentity $ evalStateT (procedureEval procedure) (argumentEval args inputs)
+runProgram inputs (Prog args procedure) = genRun procedureEval procedure (argumentEval args inputs)
+
+
+genRun :: (b -> StateID a) -> b -> Env -> a
+genRun eval input env = runIdentity $ evalStateT (eval input) env
 
 -- TESTS
 
