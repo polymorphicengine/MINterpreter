@@ -38,8 +38,8 @@ spec = do
         (parse expPos "" "(13 + (x42))") `shouldBe` (Right (Pos (Exp (Term (ENum 13) Plus (Exp (Pos (EVar (Var "x42"))))))))
 
   describe "expNeg" $ do
-    it "parses positive expressions, fails otherwise" $ do
-        (parse expNeg "" "3141") `shouldBe` (Right (Neg (ENum 3141)))
+    it "parses negative expressions, fails otherwise" $ do
+        (parse expNeg "" "-3141") `shouldBe` (Right (Neg (ENum 3141)))
         (parse expNeg "" "-(13 + 5)") `shouldBe` (Right (Neg (Exp (Term (ENum 13) Plus (ENum 5)))))
         (parse expNeg "" "-(13 + 5) - 5") `shouldBe` (Right (Neg (Exp (Term (ENum 13) Plus (ENum 5)))))
         show (parse expNeg "" "x42") `shouldBe` ("Left (line 1, column 1):\nunexpected \"x\"\nexpecting \"-\"")
@@ -47,8 +47,8 @@ spec = do
 
   describe "expParse" $ do
     it "parses proper expressions, fails otherwise" $ do
-        (parse expParse "" "(2)+(3)") `shouldBe` (Right (Term (Exp (Pos (ENum 2))) Plus (Exp (Pos (ENum 3))))
-        (parse expParse "" "(2)+(-3)") `shouldBe` Right ((Term (Exp (Pos (ENum 2))) Plus (Exp (Neg (ENum 3)))))
+        (parse expParse "" "(2)+(3)") `shouldBe` (Right (Term (Exp (Pos (ENum 2))) Plus (Exp (Pos (ENum 3)))))
+        (parse expParse "" "(2)+(-3)") `shouldBe` (Right (Term (Exp (Pos (ENum 2))) Plus (Exp (Neg (ENum 3)))))
         (parse expParse "" "( (2)+(3)   ) / ( (x__3141_x___y) * (-3)) ") `shouldBe` (Right (Term (Exp (Term (Exp (Pos (ENum 2))) Plus (Exp (Pos (ENum 3))))) Divide (Exp (Term (Exp (Pos (EVar (Var "x__3141_x___y")))) Times (Exp (Neg (ENum 3)))))))
         (parse expParse "" "-123987465") `shouldBe` (Right (Neg (ENum 123987465)))
         (parse expParse "" "(-123987465)") `shouldBe` (Right (Pos (Exp (Neg (ENum 123987465)))))

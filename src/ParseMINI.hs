@@ -85,6 +85,10 @@ betweenParens p = between (symbol '(') (symbol ')') p
 betweenParensCurly :: Parser a -> Parser a
 betweenParensCurly p = between (symbol '{') (symbol '}') p
 
+catch:: Either ParseError a -> a
+catch (Left err) = error (show err)
+catch (Right expr) = expr
+
 {-| --------------------------
          symbol parsers
 -}  --------------------------
@@ -313,14 +317,3 @@ programParseEOF = do
         prog <- lexeme $ programParse
         eof
         return prog
-
-
-
-
--- Verwenden wir nicht
--- catch:: Either ParseError a -> a
--- catch (Left err) = error (show err)
--- catch (Right expr) = expr
-
--- F R A G E
--- expParseWithEOF einsetzen?

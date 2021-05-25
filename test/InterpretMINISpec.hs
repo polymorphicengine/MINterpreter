@@ -31,7 +31,7 @@ spec = do
         (genRun boolEval (BExp (Pos (ENum 2)) LE (Pos (ENum 3))) Map.empty) `shouldBe` True
         (genRun boolEval (BExp (Term (Exp (Term (Exp (Term (ENum 2) Minus (Exp (Neg (ENum 1))))) Times (ENum 4))) Divide (ENum 3)) LE (Pos (ENum 5))) Map.empty) `shouldBe` True
         (genRun boolEval (BExp (Term (Exp (Term (Exp (Term (ENum 2) Minus (Exp (Neg (ENum 1))))) Times (ENum 4))) Divide (ENum 3)) EQQ (Pos (ENum 5))) Map.empty) `shouldBe` False
-      it "evaluates boolean expressions with defined variables"
+      it "evaluates boolean expressions with defined variables" $ do
         (genRun boolEval (BExp (Pos (EVar (Var "a"))) GEQ (Pos (ENum 3)))  (Map.insert "a" 4 Map.empty) ) `shouldBe` True
         (genRun boolEval (BExp (Pos (EVar (Var "a"))) GEQ (Pos (ENum 3)))  (Map.insert "a" 2 Map.empty) ) `shouldBe` False
         (genRun boolEval (BExp (Pos (Exp (Term (EVar (Var "a")) Plus (EVar (Var "b"))))) EQQ (Pos (ENum 3))) (Map.insert "a" (-1) $ Map.insert "b" 4 Map.empty) ) `shouldBe` True
