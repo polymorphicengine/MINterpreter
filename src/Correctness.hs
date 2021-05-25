@@ -5,6 +5,11 @@ import InterpretMINI
 import Test.QuickCheck
 import Text.Parsec(parse)
 
+-- helper
+
+strip :: Either a b -> a
+strip (Left i) = i
+
 -- fibonacci
 
 fib :: [Integer]
@@ -21,7 +26,7 @@ fibParsed = prog
         where (Right prog) = parse programParseEOF "" miniProgFib
 
 prog1_corr :: Int -> Property
-prog1_corr n = n >= 0 ==> fibonacci n == runProgram [toInteger n] fibParsed
+prog1_corr n = n >= 0 ==> fibonacci n == (strip $ runProgram [toInteger n] fibParsed)
 
 -- primes
 
@@ -39,7 +44,7 @@ primeParsed = prog
         where (Right prog) = parse programParseEOF "" miniProgPrime
 
 prog2_corr :: Int -> Property
-prog2_corr n = n >= 0 ==> (fromEnum (prime n)) == fromInteger (runProgram [toInteger n] primeParsed)
+prog2_corr n = n >= 0 ==> (fromEnum (prime n)) == (fromInteger $ strip (runProgram [toInteger n] primeParsed))
 
 -- least common multiple
 
@@ -51,4 +56,4 @@ lcmParsed = prog
         where (Right prog) = parse programParseEOF "" miniProgLCM
 
 prog3_corr :: Int -> Int -> Property
-prog3_corr n m = n >= 0 && m >= 0 ==> (lcm n m) == fromInteger (runProgram [toInteger n, toInteger m] lcmParsed)
+prog3_corr n m = n >= 0 && m >= 0 ==> (lcm n m) == (fromInteger $ strip (runProgram [toInteger n, toInteger m] lcmParsed))

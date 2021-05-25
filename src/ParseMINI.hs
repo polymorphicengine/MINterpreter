@@ -33,7 +33,7 @@ data Operator = Plus | Minus | Times | Divide deriving (Show, Eq)
 type Name = String
 newtype Var = Var Name deriving (Show, Eq)
 -- data Number = Digit Digit | Number Digit Number deriving (Show, Eq)
-data ExpressionNested = ENum Integer | EVar Var | Exp Expression deriving (Show, Eq)
+data ExpressionNested = ECall Call | ENum Integer | EVar Var | Exp Expression deriving (Show, Eq)
 data Expression = Pos ExpressionNested | Neg ExpressionNested | Term ExpressionNested Operator ExpressionNested deriving (Show, Eq)
 newtype Return = Return Var deriving (Show, Eq)
 data Boolean = BExp Expression Relator Expression deriving (Show, Eq)
@@ -42,9 +42,9 @@ data If = If Boolean Statements | Elif Boolean Statements Statements deriving (S
 data While = While Boolean Statements deriving (Show, Eq)
 data Statement = WSt While | ISt If | ASt Assign deriving (Show, Eq)
 data Statements = Eps | St Statement Statements deriving (Show, Eq)
-data Procedure = Proc Statements Return deriving (Show, Eq)
+data ProcedureBody = Body Statements Return deriving (Show, Eq)
 data Arguments = Arg Var | Args Var Arguments deriving (Show, Eq)
-data Program = Prog Arguments Procedure deriving (Show, Eq)
+data Main = Main Arguments ProcedureBody deriving (Show, Eq)
 
 {-| --------------------------
        auxiliary functions
@@ -197,7 +197,7 @@ booleanParse = do
 
 -- combination parsers (well-formed-formula)
 expNestParse :: Parser ExpressionNested
-expNestParse = lexeme bracesE <|> lexeme varE <|> lexeme numE
+expNestParse = lexeme bracesE <|> (try $ lexeme callE) <|> lexeme varE <|> lexeme numE
 
 relatorParse :: Parser Relator
 relatorParse = try geqP <|> try leqP <|> eqP <|> neqP <|> leP <|> geP
@@ -286,11 +286,11 @@ returnParse = do
       return $ Return v
 
 -- procedure statement
-procParse :: Parser Procedure
-procParse = do
+procBodyParse :: Parser ProcedureBody
+procBodyParse = do
       stat <- lexeme $ statementsParse
       ret <- lexeme $ returnParse
-      return $ Proc stat ret
+      return $ Body stat ret
 
 -- procedure arguments
 argVarParseRec :: Parser Arguments
@@ -304,12 +304,68 @@ argVarParse :: Parser Arguments
 argVarParse = try argVarParseRec <|> (fmap Arg variable)
 
 -- program
-programParse :: Parser Program
-programParse = do
+mainParse :: Parser Main
+mainParse = do
       key <- lexeme $ string "procedure main"
       args <- lexeme $ betweenParens argVarParse
-      body <- lexeme $ betweenParensCurly procParse
-      return $ Prog args body
+      body <- lexeme $ betweenParensCurly procBodyParse
+      return $ Main args body
+
+mainParseEOF :: Parser Main
+mainParseEOF = do
+        whitespace
+        prog <- lexeme $ mainParse
+        eof
+        return prog
+
+{-| ------------------------
+          Extension 3.1: Procedure Calls
+-}  ------------------------
+
+data Program = Prog Main Procedures deriving (Show, Eq)
+data Procedures = Nil | Procs Procedure Procedures deriving (Show, Eq)
+data Procedure = Proc Var Arguments ProcedureBody deriving (Show, Eq)
+data Call = Call Var ArgList deriving (Show, Eq)
+data ArgList = ArgI Expression | ArgsI Expression ArgList deriving (Show, Eq)
+
+callE :: Parser ExpressionNested
+callE = do
+      ident <- lexeme variable
+      args <- lexeme $ betweenParens argListParse
+      return $ ECall (Call ident args)
+
+argListParseRec :: Parser ArgList
+argListParseRec = do
+            x <- lexeme expParse
+            col <- lexeme $ char ','
+            xs <- lexeme $ argListParse
+            return $ ArgsI x xs
+
+argListParse :: Parser ArgList
+argListParse = try argListParseRec <|> (fmap ArgI expParse)
+
+procParse :: Parser Procedure
+procParse = do
+  key <- lexeme $ string "procedure"
+  ident <- lexeme variable
+  argVars <- lexeme $ betweenParens argVarParse
+  body <- lexeme $ betweenParensCurly procBodyParse
+  return $ Proc ident argVars body
+
+procsParseRec :: Parser Procedures
+procsParseRec = do
+            x <- lexeme procParse
+            y <- lexeme procsParse
+            return $ Procs x y
+
+procsParse :: Parser Procedures
+procsParse = try procsParseRec <|> (return Nil)
+
+programParse :: Parser Program
+programParse = do
+        main <- lexeme mainParse
+        procs <- lexeme procsParse
+        return $ Prog main procs
 
 programParseEOF :: Parser Program
 programParseEOF = do
@@ -317,3 +373,6 @@ programParseEOF = do
         prog <- lexeme $ programParse
         eof
         return prog
+
+
+--procedure main (x) {z = proc(x,2); return x;} procedure proc (y,z) {x = y*z; return x;}

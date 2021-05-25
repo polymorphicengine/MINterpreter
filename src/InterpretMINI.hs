@@ -11,7 +11,7 @@ import Control.Monad.State
 import Data.Maybe
 import qualified Data.Map as Map
 
-type Value = Integer
+type Value = Either Integer Procedure
 type Env = Map.Map Name Value -- mapping from names to values
 type StateID = StateT Env Identity -- handling states
 
@@ -19,26 +19,44 @@ type StateID = StateT Env Identity -- handling states
         well-formed-expression interpreter
 -}  ---------------------------------------
 
+
 -- nested expression
 expNestEval:: ExpressionNested -> StateID Value
-expNestEval (ENum i) = return i
+expNestEval (ECall (Call (Var name) argList)) = do
+                          env <- get
+                          case Map.lookup name env of
+                                    Nothing -> error "undefined procedure call"
+                                    (Just (Left val) ) -> error "something went wrong"
+                                    (Just (Right procedure)) -> procedureEval inputs procedure
+                                     where inputs = valuesToInts $ evalExpressions env (argsListToExp argList)
+
+expNestEval (ENum i) = return (Left i)
+
 expNestEval (EVar (Var name)) = do
                           env <- get
                           case Map.lookup name env of
                                     Nothing -> error "undefined variable call"
-                                    (Just val) -> return val
+                                    (Just (Left val) ) -> return (Left val)
+                                    (Just (Right procedure)) -> error "something went wrong"
+
 expNestEval (Exp expr) = expEval expr
 
 -- combined expression
 expEval :: Expression -> StateID Value
 expEval (Pos expr) = expNestEval expr
 expEval (Neg expr) =  do
-                num <- expNestEval expr
-                return (- num)
+                val <- expNestEval expr
+                case val of
+                    (Left num) -> return $ Left (- num)
+                    (Right p) -> error ""
 expEval (Term exp1 op exp2) = do
-                        num1 <- expNestEval exp1
-                        num2 <- expNestEval exp2
-                        return $ (getOp op) num1 num2
+                        val1 <- expNestEval exp1
+                        val2 <- expNestEval exp2
+                        case val1 of
+                          (Left num1) -> case val2 of
+                                  (Left num2) -> return $ Left ((getOp op) num1 num2)
+                                  (Right p) -> error ""
+                          (Right p) -> error ""
                         where getOp Plus = (+)
                               getOp Minus = (-)
                               getOp Times = (*)
@@ -47,15 +65,19 @@ expEval (Term exp1 op exp2) = do
 -- boolean expression
 boolEval :: Boolean -> StateID Bool
 boolEval (BExp exp1 rel exp2) = do
-                      num1 <- expEval exp1
-                      num2 <- expEval exp2
-                      return $ (getRel rel) num1 num2
+                      val1 <- expEval exp1
+                      val2 <- expEval exp2
+                      case val1 of
+                        (Left num1) -> case val2 of
+                                (Left num2) -> return $ (getRel rel) num1 num2
+                                (Right p) -> error ""
+                        (Right p) -> error ""
                       where getRel GEQ = (>=)
                             getRel LEQ = (<=)
                             getRel EQQ = (==)
                             getRel NEQ = (/=)
                             getRel LE = (<)
-                            g1etRel GE = (>)
+                            getRel GE = (>)
 
 {-| ---------------------------------------
             statement interpreter
@@ -117,24 +139,25 @@ returnEval (Return (Var name)) = do
                           env <- get
                           case Map.lookup name env of
                                 Nothing -> error "undefined variable call"
-                                (Just val) -> return val
+                                (Just (Left val) ) -> return (Left val)
+                                (Just (Right procedure)) -> error "something went wrong"
 
 -- procedure statement
-procedureEval:: Procedure -> StateID Value
-procedureEval (Proc stats ret) = do
+procedureBodyEval:: ProcedureBody -> StateID Value
+procedureBodyEval (Body stats ret) = do
                               statsEval stats
                               returnEval ret
 
--- procedure arguments
-argumentEval:: Arguments -> [Integer] -> Env
-argumentEval args input | length input /= length argList = error "length of input does not match length of arguments"
-                        | otherwise = Map.unions $ zipWith (\(Var name) i -> Map.insert name i Map.empty) argList input
-                      where argList = argsToList args
-
--- program
-runProgram :: [Integer] -> Program -> Value
-runProgram inputs (Prog args procedure) = genRun procedureEval procedure (argumentEval args inputs)
-
+-- procedure arguments, changes only the environment
+argumentEval :: Arguments -> [Integer] -> StateID ()
+argumentEval (Arg (Var name)) [i] = do
+                      env <- get
+                      put $ Map.insert name (Left i) env
+argumentEval (Arg (Var name)) _ = error "number of arguments not equal to number of inputs"
+argumentEval (Args (Var name) as) (i:is) = do
+                      env <- get
+                      put $ Map.insert name (Left i) env
+                      argumentEval as is
 
 {-| --------------------------
        auxiliary functions
@@ -148,41 +171,43 @@ argsToList (Args v vs) = v:(argsToList vs)
 genRun :: (b -> StateID a) -> b -> Env -> a
 genRun eval input env = runIdentity $ evalStateT (eval input) env
 
+{-| --------------------------
+       Extension 3.1: Procedure Calls
+-}  --------------------------
 
+argsListToExp:: ArgList -> [Expression]
+argsListToExp (ArgI ex) = [ex]
+argsListToExp (ArgsI ex exs) = ex:(argsListToExp exs)
 
--- T O  D E L E T E
+evalExpressions:: Env -> [Expression] -> [Value]
+evalExpressions env exps = map (\x -> genRun expEval x env) exps
 
--- TESTS
+valuesToInts :: [Value] -> [Integer]
+valuesToInts vals = map strip vals
+              where strip (Left i) = i
+                    strip (Right expr) = error "TODO"
 
--- runIdentity $(evalStateT $ evalExp Map.empty (Pos (ENum 5))) Map.empty
--- runIdentity $(evalStateT $ evalExp Map.empty ( (Term (Exp (Term (ENum 1) Plus (ENum 2))) Times (ENum 3)) )) Map.empty
--- runIdentity $ runStateT  (assignEval (Ass (Var "x") (Pos (ENum 5)))) Map.empty
+procedureEval :: [Integer] -> Procedure -> StateID Value
+procedureEval inputs (Proc name args body) = do
+                                  argumentEval args inputs
+                                  procedureBodyEval body
 
----(St (ASt (Ass (Var "c") (Term (ENum 5) Minus (ENum 2)))) (St (ASt (Ass (Var "d") (Pos (EVar (Var "c"))))) Eps))
--- runIdentity $ runStateT  (statsEval (St (ASt (Ass (Var "c") (Term (ENum 5) Minus (ENum 2)))) (St (ASt (Ass (Var "d") (Pos (EVar (Var "c"))))) Eps))) Map.empty
+proceduresEval :: Procedures -> StateID ()
+proceduresEval Nil = return ()
+proceduresEval (Procs p@(Proc (Var name) _ _) ps) = do
+                                        env <- get
+                                        put $ Map.insert name (Right p) env
+                                        proceduresEval ps
 
--- (St (ASt (Ass (Var "x") (Pos (ENum 1)))) (St (WSt (While (BExp (Pos (EVar (Var "x"))) EQQ (Pos (ENum 1))) (St (ASt (Ass (Var "x") (Term (EVar (Var "x")) Minus (ENum 1)))) Eps))) Eps))
--- runIdentity $ runStateT  (statsEval (St (ASt (Ass (Var "x") (Pos (ENum 1)))) (St (WSt (While (BExp (Pos (EVar (Var "x"))) EQQ (Pos (ENum 1))) (St (ASt (Ass (Var "x") (Term (EVar (Var "x")) Minus (ENum 1)))) Eps))) Eps))) Map.empty
+mainEval :: [Integer] -> Main -> StateID Value
+mainEval inputs (Main args body) = do
+                      argumentEval args inputs
+                      procedureBodyEval body
 
--- (Prog (Args (Var "a") (Arg (Var "b"))) (Proc (St (ISt (Elif (BExp (Pos (EVar (Var "a"))) LE (Pos (EVar (Var "b")))) (St (ASt (Ass (Var "c") (Pos (EVar (Var "a"))))) Eps) (St (ASt (Ass (Var "c") (Pos (EVar (Var "b"))))) Eps))) Eps) (Return (Var "c"))))
+evalProgram :: [Integer] -> Program -> StateID Value
+evalProgram inputs (Prog main procs) = do
+                              proceduresEval procs
+                              mainEval inputs main
 
--- runIdentity $ runStateT  (programEval [1,0] (Prog (Args (Var "a") (Arg (Var "b"))) (Proc (St (ISt (Elif (BExp (Pos (EVar (Var "a"))) LE (Pos (EVar (Var "b")))) (St (ASt (Ass (Var "c") (Pos (EVar (Var "a"))))) Eps) (St (ASt (Ass (Var "c") (Pos (EVar (Var "b"))))) Eps))) Eps) (Return (Var "c")))) ) Map.empty
-
--- divide by zero example
--- (Prog (Arg (Var "a")) (Proc (St (ASt (Ass (Var "b") (Term (EVar (Var "a")) Divide (ENum 0)))) Eps) (Return (Var "b"))))
-
--- greatest common divisor example
---(Prog (Args (Var "a") (Arg (Var "b"))) (Proc (St (ASt (Ass (Var "r") (Pos (EVar (Var "b"))))) (St (ISt (If (BExp (Pos (EVar (Var "a"))) NEQ (Pos (ENum 0))) (St (WSt (While (BExp (Pos (EVar (Var "b"))) NEQ (Pos (ENum 0))) (St (ISt (Elif (BExp (Pos (EVar (Var "a"))) LEQ (Pos (EVar (Var "b")))) (St (ASt (Ass (Var "b") (Term (EVar (Var "b")) Minus (EVar (Var "a"))))) Eps) (St (ASt (Ass (Var "a") (Term (EVar (Var "a")) Minus (EVar (Var "b"))))) Eps))) Eps))) (St (ASt (Ass (Var "r") (Pos (EVar (Var "a"))))) Eps)))) Eps)) (Return (Var "r"))))
--- runProgram [42,56] (Prog (Args (Var "a") (Arg (Var "b"))) (Proc (St (ASt (Ass (Var "r") (Pos (EVar (Var "b"))))) (St (ISt (If (BExp (Pos (EVar (Var "a"))) NEQ (Pos (ENum 0))) (St (WSt (While (BExp (Pos (EVar (Var "b"))) NEQ (Pos (ENum 0))) (St (ISt (Elif (BExp (Pos (EVar (Var "a"))) LEQ (Pos (EVar (Var "b")))) (St (ASt (Ass (Var "b") (Term (EVar (Var "b")) Minus (EVar (Var "a"))))) Eps) (St (ASt (Ass (Var "a") (Term (EVar (Var "a")) Minus (EVar (Var "b"))))) Eps))) Eps))) (St (ASt (Ass (Var "r") (Pos (EVar (Var "a"))))) Eps)))) Eps)) (Return (Var "r"))))
-
-
--- N E W   progs
-
--- factorial of n
--- runProgram [10] (Prog (Arg (Var "n")) (Proc (St (ASt (Ass (Var "i") (Pos (ENum 1)))) (St (ASt (Ass (Var "fac") (Pos (ENum 1)))) (St (ISt (Elif (BExp (Pos (EVar (Var "n"))) LE (Pos (ENum 0))) (St (ASt (Ass (Var "fac") (Pos (ENum 0)))) Eps) (St (WSt (While (BExp (Pos (EVar (Var "n"))) GEQ (Pos (EVar (Var "i")))) (St (ASt (Ass (Var "fac") (Term (EVar (Var "fac")) Times (EVar (Var "i"))))) (St (ASt (Ass (Var "i") (Term (EVar (Var "i")) Plus (ENum 1)))) Eps)))) Eps))) Eps))) (Return (Var "fac"))))
-
--- reversal of n
--- runProgram [123456789] (Prog (Arg (Var "n")) (Proc (St (ASt (Ass (Var "reverse") (Pos (ENum 0)))) (St (WSt (While (BExp (Pos (EVar (Var "n"))) NEQ (Pos (ENum 0))) (St (ASt (Ass (Var "rem") (Term (EVar (Var "n")) Minus (Exp (Term (ENum 10) Times (Exp (Term (EVar (Var "n")) Divide (ENum 10)))))))) (St (ASt (Ass (Var "reverse") (Pos (Exp (Term (Exp (Term (EVar (Var "reverse")) Times (ENum 10))) Plus (EVar (Var "rem"))))))) (St (ASt (Ass (Var "n") (Term (EVar (Var "n")) Divide (ENum 10)))) Eps))))) Eps)) (Return (Var "reverse"))))
-
--- count digits of n
--- runProgram [71283719823791273] (Prog (Arg (Var "n")) (Proc (St (ASt (Ass (Var "counter") (Pos (ENum 0)))) (St (WSt (While (BExp (Pos (EVar (Var "n"))) NEQ (Pos (ENum 0))) (St (ASt (Ass (Var "n") (Term (EVar (Var "n")) Divide (ENum 10)))) (St (ASt (Ass (Var "counter") (Term (EVar (Var "counter")) Plus (ENum 1)))) Eps)))) Eps)) (Return (Var "counter"))))
+runProgram :: [Integer] -> Program -> Value
+runProgram inputs p = genRun (evalProgram inputs) p Map.empty

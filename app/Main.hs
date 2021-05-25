@@ -14,4 +14,6 @@ main = do
   miniProg <- readFile path
   let prog = catch (parse programParseEOF "" miniProg)
   let output = runProgram inputs prog
-  print output
+  print $ strip output
+  where strip (Left i) = i
+        strip (Right expr) = error "think again ;) cannot return procedures"
