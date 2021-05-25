@@ -27,7 +27,10 @@ expNestEval (ECall (Call (Var name) argList)) = do
                           case Map.lookup name env of
                                     Nothing -> error "undefined procedure call"
                                     (Just (Left val) ) -> error "something went wrong"
-                                    (Just (Right procedure)) -> procedureEval inputs procedure
+                                    (Just (Right p@(Proc _ args _))) -> do
+                                                                  val <- procedureEval inputs p
+                                                                  put $ restoreEnv env args       --restore the environment
+                                                                  return val
                                      where inputs = valuesToInts $ evalExpressions env (argsListToExp argList)
 
 expNestEval (ENum i) = return (Left i)
@@ -211,3 +214,11 @@ evalProgram inputs (Prog main procs) = do
 
 runProgram :: [Integer] -> Program -> Value
 runProgram inputs p = genRun (evalProgram inputs) p Map.empty
+
+restoreEnv :: Env -> Arguments -> Env
+restoreEnv env (Arg (Var n)) = case Map.lookup n env of
+                                      Nothing -> env
+                                      (Just val) ->  Map.insert n val env
+restoreEnv env (Args (Var n) as) = case Map.lookup n env of
+                                      Nothing -> restoreEnv env as
+                                      (Just val) ->  Map.insert n val (restoreEnv env as)
