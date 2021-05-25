@@ -14,14 +14,13 @@ spec = do
     it "always suceeds" $ do
         (parse whitespace "" "\t  foo bar\n") `shouldBe` (Right ())
         (parse whitespace "" "foo bar\n") `shouldBe` (Right ())
+
   describe "number parser" $ do
     it "parses numbers, fails otherwise" $ do
         (parse numE "" "123") `shouldBe` (Right (ENum 123))
         show (parse numE "" "abc") `shouldBe` "Left (line 1, column 1):\nunexpected \"a\"\nexpecting digit"
-        -- show (parse numE "" "x_y_a_251_ \t") `shouldBe` "Left (line 1, column 1):\nunexpected \"x\"\nexpecting digit"
-        -- (parse numE "" "0123")  `shouldBe` (Right (ENum 0123))
-
-{-  T E S T   S E C T I O N
+        show (parse numE "" "x_y_a_251_ \t") `shouldBe` "Left (line 1, column 1):\nunexpected \"x\"\nexpecting digit"
+        (parse numE "" "0123")  `shouldBe` (Right (ENum 0123))
 
   describe "varE" $ do
     it "parses variables, fails otherwise" $ do
@@ -144,15 +143,3 @@ spec = do
           (parse programParse "" "procedure main (n) {reverse = 0; while (n!=0 ) {\n rem = n - (10 * (n/10)); reverse =((reverse * 10) + rem); n = n/10;} return reverse;}") `shouldBe` (Right (Prog (Arg (Var "n")) (Proc (St (ASt (Ass (Var "reverse") (Pos (ENum 0)))) (St (WSt (While (BExp (Pos (EVar (Var "n"))) NEQ (Pos (ENum 0))) (St (ASt (Ass (Var "rem") (Term (EVar (Var "n")) Minus (Exp (Term (ENum 10) Times (Exp (Term (EVar (Var "n")) Divide (ENum 10)))))))) (St (ASt (Ass (Var "reverse") (Pos (Exp (Term (Exp (Term (EVar (Var "reverse")) Times (ENum 10))) Plus (EVar (Var "rem"))))))) (St (ASt (Ass (Var "n") (Term (EVar (Var "n")) Divide (ENum 10)))) Eps))))) Eps)) (Return (Var "reverse")))))
     it "parses a program that counts the number of digits a number n" $ do
           (parse programParse "" "procedure main (n) {counter = 0; while (n!= \t 0 ) { n = n/10; counter = counter +1; \n} return counter;}") `shouldBe` (Right (Prog (Arg (Var "n")) (Proc (St (ASt (Ass (Var "counter") (Pos (ENum 0)))) (St (WSt (While (BExp (Pos (EVar (Var "n"))) NEQ (Pos (ENum 0))) (St (ASt (Ass (Var "n") (Term (EVar (Var "n")) Divide (ENum 10)))) (St (ASt (Ass (Var "counter") (Term (EVar (Var "counter")) Plus (ENum 1)))) Eps)))) Eps)) (Return (Var "counter")))))
-
--}
-
--- U N E X P E C T E D
--- parse expParse "" "2 +/ 2"                    ---> Right (Pos (ENum 2))
--- parse varE "" "x123Eps"                       ---> Right (EVar (Var "x123"))
--- parse varE "" "uA"                            ---> Right (EVar (Var "u"))
--- parse numE "" "02"                            ---> Right (ENum 2)
--- parse expParse "" "(xiu5_A_3 + 5)"            ---> error
--- parse expParse "" "xiu5_A_3 + 5"              ---> Right (Pos (EVar (Var "xiu5_")))
--- parse expParse "" "xiu5_zzzz___3 /+ 5"        ---> Right (Pos (EVar (Var "xiu5_zzzz___3")))
--- parse expParseWithEOF "" "xiu5_zzzz___3 +/ 5" ---> error

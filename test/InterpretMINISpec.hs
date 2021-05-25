@@ -22,9 +22,6 @@ spec = do
         (evaluate (genRun expEval (Term (Exp (Term (EVar $ Var "abc") Plus (ENum 3))) Times (ENum 4)) Map.empty)) `shouldThrow` anyException
       it "it fails on division by zero" $ do
         (evaluate (genRun expEval (Term (Exp (Term (ENum 3) Divide (ENum 0))) Times (ENum 4)) Map.empty)) `shouldThrow` anyException
-
-{-  T E S T   S E C T I O N
-
       it "evaluates expressions without variables" $ do
         (genRun expEval (Term (Exp (Term (Exp (Term (ENum 3) Minus (ENum 1))) Minus (Exp (Term (ENum 3) Minus (ENum 1))))) Minus (Exp (Term (ENum 3) Minus (Exp (Neg (ENum 1)))))) Map.empty) `shouldBe` -4
         (genRun expEval (Pos (Exp (Term (Exp (Term (Exp (Term (Exp (Term (ENum 2) Divide (ENum 2))) Times (Exp (Neg (ENum 2))))) Divide (ENum 2))) Times (ENum 2)))) Map.empty) `shouldBe` -2
@@ -49,7 +46,3 @@ spec = do
          runProgram [123456789] (Prog (Arg (Var "n")) (Proc (St (ASt (Ass (Var "reverse") (Pos (ENum 0)))) (St (WSt (While (BExp (Pos (EVar (Var "n"))) NEQ (Pos (ENum 0))) (St (ASt (Ass (Var "rem") (Term (EVar (Var "n")) Minus (Exp (Term (ENum 10) Times (Exp (Term (EVar (Var "n")) Divide (ENum 10)))))))) (St (ASt (Ass (Var "reverse") (Pos (Exp (Term (Exp (Term (EVar (Var "reverse")) Times (ENum 10))) Plus (EVar (Var "rem"))))))) (St (ASt (Ass (Var "n") (Term (EVar (Var "n")) Divide (ENum 10)))) Eps))))) Eps)) (Return (Var "reverse")))) `shouldBe` 987654321
       it "evaluates program that counts the number of digits a number n" $ do
          runProgram [71283719823791273] (Prog (Arg (Var "n")) (Proc (St (ASt (Ass (Var "counter") (Pos (ENum 0)))) (St (WSt (While (BExp (Pos (EVar (Var "n"))) NEQ (Pos (ENum 0))) (St (ASt (Ass (Var "n") (Term (EVar (Var "n")) Divide (ENum 10)))) (St (ASt (Ass (Var "counter") (Term (EVar (Var "counter")) Plus (ENum 1)))) Eps)))) Eps)) (Return (Var "counter")))) `shouldBe` 17
--}
-
--- U N E X P E C T E D
--- (genRun boolEval (BExp (Pos (EVar (Var "a"))) GEQ (Pos (ENum 3))) Map.empty)  ---> error
