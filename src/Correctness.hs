@@ -28,6 +28,18 @@ fibParsed = prog
 prog1_corr :: Int -> Property
 prog1_corr n = n >= 0 ==> fibonacci n == (strip $ runProgram [toInteger n] fibParsed)
 
+-- fibonacci recursive (performs really badly)
+
+miniProgFibRec :: String
+miniProgFibRec = "procedure main (n) {res = fib(n); return res; } procedure fib (m) {if (m == 0) { result = 1; } if (m == 1) { result = 1; } if (m > 1) { result = fib(m - 1) + fib(m - 2); } return result;}"
+
+fibRecParsed :: Program
+fibRecParsed = prog
+        where (Right prog) = parse programParseEOF "" miniProgFibRec
+
+prog1_corr' :: Int -> Property
+prog1_corr' n = n >= 0  && n <= 15 ==> fibonacci n == (strip $ runProgram [toInteger n] fibRecParsed)
+
 -- primes
 
 factor :: Int -> [Int]
