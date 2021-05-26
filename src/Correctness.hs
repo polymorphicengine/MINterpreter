@@ -25,8 +25,8 @@ fibParsed :: Program
 fibParsed = prog
         where (Right prog) = parse programParseEOF "" miniProgFib
 
-prog1_corr :: Int -> Property
-prog1_corr n = n >= 0 ==> fibonacci n == (strip $ runProgram [toInteger n] fibParsed)
+-- prog1_corr :: Int -> Property
+-- prog1_corr n = n >= 0 ==> fibonacci n == (strip $ runProgram [toInteger n] fibParsed)
 
 -- fibonacci recursive (performs really badly)
 
@@ -37,8 +37,8 @@ fibRecParsed :: Program
 fibRecParsed = prog
         where (Right prog) = parse programParseEOF "" miniProgFibRec
 
-prog1_corr' :: Int -> Property
-prog1_corr' n = n >= 0  && n <= 15 ==> fibonacci n == (strip $ runProgram [toInteger n] fibRecParsed)
+-- prog1_corr' :: Int -> Property
+-- prog1_corr' n = n >= 0  && n <= 15 ==> fibonacci n == (strip $ runProgram [toInteger n] fibRecParsed)
 
 -- primes
 
@@ -55,8 +55,8 @@ primeParsed :: Program
 primeParsed = prog
         where (Right prog) = parse programParseEOF "" miniProgPrime
 
-prog2_corr :: Int -> Property
-prog2_corr n = n >= 0 ==> (fromEnum (prime n)) == (fromInteger $ strip (runProgram [toInteger n] primeParsed))
+-- prog2_corr :: Int -> Property
+-- prog2_corr n = n >= 0 ==> (fromEnum (prime n)) == (fromInteger $ strip (runProgram [toInteger n] primeParsed))
 
 -- least common multiple
 
@@ -67,5 +67,5 @@ lcmParsed :: Program
 lcmParsed = prog
         where (Right prog) = parse programParseEOF "" miniProgLCM
 
-prog3_corr :: Int -> Int -> Property
-prog3_corr n m = n >= 0 && m >= 0 ==> (lcm n m) == (fromInteger $ strip (runProgram [toInteger n, toInteger m] lcmParsed))
+-- prog3_corr :: Int -> Int -> Property
+-- prog3_corr n m = n >= 0 && m >= 0 ==> (lcm n m) == (fromInteger $ strip (runProgram [toInteger n, toInteger m] lcmParsed))

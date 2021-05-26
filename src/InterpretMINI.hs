@@ -13,7 +13,7 @@ import qualified Data.Map as Map
 
 type Value = Either Integer Procedure
 type Env = Map.Map Name Value -- mapping from names to values
-type StateID = StateT Env Identity -- handling states
+type StateID = StateT Env IO -- handling states
 
 {-| ---------------------------------------
         well-formed-expression interpreter
@@ -28,10 +28,12 @@ expNestEval (ECall (Call (Var name) argList)) = do
                                     Nothing -> error "undefined procedure call"
                                     (Just (Left val) ) -> error "something went wrong"
                                     (Just (Right p@(Proc _ args _))) -> do
+                                                                  vals <- evalExpressions (argsListToExp argList)
+                                                                  let inputs = map strip vals
                                                                   val <- procedureEval inputs p
                                                                   put $ restoreEnv env args       --restore the environment
                                                                   return val
-                                     where inputs = valuesToInts $ evalExpressions env (argsListToExp argList)
+                                                                  where strip (Left i) = i
 
 expNestEval (ENum i) = return (Left i)
 
@@ -124,6 +126,8 @@ statEval:: Statement -> StateID ()
 statEval (WSt w) = whileEval w
 statEval (ISt i) = ifEval i
 statEval (ASt a) = assignEval a
+statEval (RSt r) = readEval r
+statEval (PSt p) = printEval p
 
 -- statements
 statsEval :: Statements -> StateID ()
@@ -171,8 +175,8 @@ argsToList:: Arguments -> [Var]
 argsToList (Arg v) = [v]
 argsToList (Args v vs) = v:(argsToList vs)
 
-genRun :: (b -> StateID a) -> b -> Env -> a
-genRun eval input env = runIdentity $ evalStateT (eval input) env
+genRun :: (b -> StateID a) -> b -> Env -> IO a
+genRun eval input env = evalStateT (eval input) env
 
 {-| --------------------------
        Extension 3.1: Procedure Calls
@@ -182,13 +186,22 @@ argsListToExp:: ArgList -> [Expression]
 argsListToExp (ArgI ex) = [ex]
 argsListToExp (ArgsI ex exs) = ex:(argsListToExp exs)
 
-evalExpressions:: Env -> [Expression] -> [Value]
-evalExpressions env exps = map (\x -> genRun expEval x env) exps
+evalExpressions:: [Expression] -> StateID [Value]
+evalExpressions [expr] = do
+                        ev <- expEval expr
+                        return [ev]
+evalExpressions (expr:exprs) = do
+                        ev1 <- expEval expr
+                        evs <- evalExpressions exprs
+                        return $ ev1:evs
 
-valuesToInts :: [Value] -> [Integer]
-valuesToInts vals = map strip vals
-              where strip (Left i) = i
-                    strip (Right expr) = error "TODO"
+-- evalExpressions:: Env -> [Expression] -> [IO Value]
+-- evalExpressions env exps = map (\x -> genRun expEval x env) exps
+
+-- valuesToInts :: [IO Value] -> [IO Integer]
+-- valuesToInts vals = fmap strip vals
+--               where strip (Left i) = i
+--                     strip (Right expr) = error "TODO"
 
 procedureEval :: [Integer] -> Procedure -> StateID Value
 procedureEval inputs (Proc name args body) = do
@@ -212,7 +225,7 @@ evalProgram inputs (Prog main procs) = do
                               proceduresEval procs
                               mainEval inputs main
 
-runProgram :: [Integer] -> Program -> Value
+runProgram :: [Integer] -> Program -> IO Value
 runProgram inputs p = genRun (evalProgram inputs) p Map.empty
 
 restoreEnv :: Env -> Arguments -> Env
@@ -222,3 +235,23 @@ restoreEnv env (Arg (Var n)) = case Map.lookup n env of
 restoreEnv env (Args (Var n) as) = case Map.lookup n env of
                                       Nothing -> restoreEnv env as
                                       (Just val) ->  Map.insert n val (restoreEnv env as)
+
+{-| ------------------------
+          Extension 3.1: IO
+-}  ------------------------
+
+
+readEval :: ReadSt -> StateID ()
+readEval (Read (Var name)) = do
+                      env <- get
+                      liftIO $ putStrLn "Enter a value: \n"
+                      input <- liftIO getLine
+                      let number = read input :: Integer
+                      put $ Map.insert name (Left number) env
+
+printEval :: Print -> StateID ()
+printEval (Print expr) = do
+                      ev <- expEval expr
+                      liftIO $ putStr "MINI print: "
+                      liftIO $ print (strip ev)
+                      where strip (Left i) = i

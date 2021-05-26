@@ -40,7 +40,7 @@ data Boolean = BExp Expression Relator Expression deriving (Show, Eq)
 data Assign = Ass Var Expression deriving (Show, Eq)
 data If = If Boolean Statements | Elif Boolean Statements Statements deriving (Show, Eq)
 data While = While Boolean Statements deriving (Show, Eq)
-data Statement = WSt While | ISt If | ASt Assign deriving (Show, Eq)
+data Statement = WSt While | ISt If | ASt Assign | RSt ReadSt | PSt Print deriving (Show, Eq)
 data Statements = Eps | St Statement Statements deriving (Show, Eq)
 data ProcedureBody = Body Statements Return deriving (Show, Eq)
 data Arguments = Arg Var | Args Var Arguments deriving (Show, Eq)
@@ -261,7 +261,7 @@ emptyParse = return Eps
 
 -- statement
 statementParse :: Parser Statement
-statementParse = (try $ fmap WSt whileParse) <|> (try $ fmap ISt ifParse) <|> fmap ASt assignParse
+statementParse = (try $ fmap WSt whileParse) <|> (try $ fmap ISt ifParse) <|> (try $ fmap RSt readParse) <|> fmap PSt printParse <|> fmap ASt assignParse
 
 -- statements
 statementsParseRec :: Parser Statements
@@ -375,4 +375,28 @@ programParseEOF = do
         return prog
 
 
---procedure main (x) {z = proc(x,2); return x;} procedure proc (y,z) {x = y*z; return x;}
+--procedure main (x) {z = proc(x,2); return x;} procedure proc (y,z) {x = y*z; z = read_int(); print_int(4*x); return x;}
+
+
+{-| ------------------------
+          Extension 3.1: IO
+-}  ------------------------
+
+newtype Print = Print Expression deriving (Eq, Show)
+newtype ReadSt = Read Var deriving (Eq, Show)
+
+printParse :: Parser Print
+printParse = do
+      string <- lexeme $ string "print_int"
+      expr <- lexeme $ betweenParens expParse
+      sem <- lexeme $ char ';'
+      return $ Print expr
+
+readParse :: Parser ReadSt
+readParse = do
+      var <- lexeme $ variable
+      eq <- lexeme $ char '='
+      string <- lexeme $ string "read_int();"
+      return $ Read var
+
+-- "procedure main (x) {z = x + 2; print_int(z*2); return z; }"
