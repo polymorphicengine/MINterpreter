@@ -3,6 +3,7 @@ module Correctness where
 import ParseMINI
 import InterpretMINI
 import Test.QuickCheck
+import Test.QuickCheck.Monadic (assert, monadicIO, pick, pre, run)
 import Text.Parsec(parse)
 
 -- helper
@@ -25,8 +26,11 @@ fibParsed :: Program
 fibParsed = prog
         where (Right prog) = parse programParseEOF "" miniProgFib
 
--- prog1_corr :: Int -> Property
--- prog1_corr n = n >= 0 ==> fibonacci n == (strip $ runProgram [toInteger n] fibParsed)
+prog1_corr :: Int -> Property
+prog1_corr n = n >= 0 ==> monadicIO $ do
+              x <- run $ runProgram [toInteger n] fibParsed
+              let val = strip x
+              assert $ (fibonacci n) == val
 
 -- fibonacci recursive (performs really badly)
 
@@ -37,8 +41,11 @@ fibRecParsed :: Program
 fibRecParsed = prog
         where (Right prog) = parse programParseEOF "" miniProgFibRec
 
--- prog1_corr' :: Int -> Property
--- prog1_corr' n = n >= 0  && n <= 15 ==> fibonacci n == (strip $ runProgram [toInteger n] fibRecParsed)
+prog1_corr' :: Int -> Property
+prog1_corr' n = n >= 0  && n <= 15 ==> monadicIO $ do
+              x <- run $ runProgram [toInteger n] fibRecParsed
+              let val = strip x
+              assert $ (fibonacci n) == val
 
 -- primes
 
@@ -55,8 +62,11 @@ primeParsed :: Program
 primeParsed = prog
         where (Right prog) = parse programParseEOF "" miniProgPrime
 
--- prog2_corr :: Int -> Property
--- prog2_corr n = n >= 0 ==> (fromEnum (prime n)) == (fromInteger $ strip (runProgram [toInteger n] primeParsed))
+prog2_corr :: Int -> Property
+prog2_corr n = n >= 0 ==> monadicIO $ do
+              x <- run $ runProgram [toInteger n] primeParsed
+              let val = strip x
+              assert $ (fromEnum (prime n)) == (fromInteger val)
 
 -- least common multiple
 
@@ -67,5 +77,8 @@ lcmParsed :: Program
 lcmParsed = prog
         where (Right prog) = parse programParseEOF "" miniProgLCM
 
--- prog3_corr :: Int -> Int -> Property
--- prog3_corr n m = n >= 0 && m >= 0 ==> (lcm n m) == (fromInteger $ strip (runProgram [toInteger n, toInteger m] lcmParsed))
+prog3_corr :: Int -> Int -> Property
+prog3_corr n m = n >= 0 && m >= 0 ==> monadicIO $ do
+              x <- run $ runProgram [toInteger n, toInteger m] lcmParsed
+              let val = strip x
+              assert $ (lcm n m) == (fromInteger val)
