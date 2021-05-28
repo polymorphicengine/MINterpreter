@@ -261,7 +261,7 @@ emptyParse = return Eps
 
 -- statement
 statementParse :: Parser Statement
-statementParse = (try $ fmap WSt whileParse) <|> (try $ fmap ISt ifParse) <|> (try $ fmap RSt readParse) <|> fmap PSt printParse <|> fmap ASt assignParse
+statementParse = (try $ fmap WSt whileParse) <|> (try $ fmap ISt ifParse) <|> (try $ fmap RSt readParse) <|> (try $ fmap PSt printParse) <|> fmap ASt assignParse
 
 -- statements
 statementsParseRec :: Parser Statements
