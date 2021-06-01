@@ -124,7 +124,7 @@ spec = do
 
   describe "procBodyParse" $ do
     it "parses procedure body, fails otherwise" $ do
-          show (parse procBodyParse "" "if (x <= 0) {x = 0 +0 \t;}") `shouldBe` ("Left (line 1, column 27):\nunexpected end of input\nexpecting \"while\", \"if\" or \"return\"")
+          show (parse procBodyParse "" "if (x <= 0) {x = 0 +0 \t;}") `shouldBe` ("Left (line 1, column 27):\nunexpected end of input\nexpecting \"while\", \"if\", \"print_int\" or \"return\"")
           (parse procBodyParse "" "return x;") `shouldBe` (Right (Body Eps (Return (Var "x"))))
           (parse procBodyParse "" "if (x <= 0) {x = 0 +0 \t;} return x;") `shouldBe` (Right (Body (St (ISt (If (BExp (Pos (EVar (Var "x"))) LEQ (Pos (ENum 0))) (St (ASt (Ass (Var "x") (Term (ENum 0) Plus (ENum 0)))) Eps))) Eps) (Return (Var "x"))))
           (parse procBodyParse "" "if (c>=(b+(-3))/3)     {if (a>= b+(-3))  {a = 123987465;} else  {while (y!= 3) {x=x+1;} } } return irwas_bru;  ") `shouldBe` (Right (Body (St (ISt (If (BExp (Pos (EVar (Var "c"))) GEQ (Term (Exp (Term (EVar (Var "b")) Plus (Exp (Neg (ENum 3))))) Divide (ENum 3))) (St (ISt (Elif (BExp (Pos (EVar (Var "a"))) GEQ (Term (EVar (Var "b")) Plus (Exp (Neg (ENum 3))))) (St (ASt (Ass (Var "a") (Pos (ENum 123987465)))) Eps) (St (WSt (While (BExp (Pos (EVar (Var "y"))) NEQ (Pos (ENum 3))) (St (ASt (Ass (Var "x") (Term (EVar (Var "x")) Plus (ENum 1)))) Eps))) Eps))) Eps))) Eps) (Return (Var "irwas_bru"))))
