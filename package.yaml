@@ -26,6 +26,8 @@ dependencies:
 - containers
 - hspec
 - QuickCheck
+- prettyprinter
+- generic-random
 
 library:
   source-dirs: src
