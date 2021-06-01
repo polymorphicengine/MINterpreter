@@ -1,9 +1,12 @@
+{-# LANGUAGE DeriveGeneric #-}
+
 module ParseMINI where
 
 {-| ------------------------
             import
 -}  ------------------------
 
+import GHC.Generics
 import Text.Parsec.String(Parser)
 import Text.Parsec(many, satisfy, try, (<|>), parse)
 import Text.Parsec.Char(char, oneOf, digit, string)
@@ -16,8 +19,8 @@ import Control.Monad(void)
            terminals
 -}  ------------------------
 
-data Relator = EQQ | NEQ | LEQ | GEQ | LE | GE deriving (Show, Eq)
-data Operator = Plus | Minus | Times | Divide deriving (Show, Eq)
+data Relator = EQQ | NEQ | LEQ | GEQ | LE | GE deriving (Show, Eq, Generic)
+data Operator = Plus | Minus | Times | Divide deriving (Show, Eq, Generic)
 -- data Digit = Zero | One | Two | Three | Four | Five | Six | Seven | Eight | Nine deriving (Show, Eq, Enum)
 -- data Letter = A | B | C | D | E | F | G | H | I | J | K | L | M | N | O | P | Q | R | S | T | U | V | W | X | Y | Z deriving (Show, Eq)
 
@@ -31,20 +34,20 @@ data Operator = Plus | Minus | Times | Divide deriving (Show, Eq)
 -- newtype Ident = Ident String deriving (Show, Eq)
 
 type Name = String
-newtype Var = Var Name deriving (Show, Eq)
+newtype Var = Var Name deriving (Show,Eq,Generic)
 -- data Number = Digit Digit | Number Digit Number deriving (Show, Eq)
-data ExpressionNested = ECall Call | ENum Integer | EVar Var | Exp Expression deriving (Show, Eq)
-data Expression = Pos ExpressionNested | Neg ExpressionNested | Term ExpressionNested Operator ExpressionNested deriving (Show, Eq)
-newtype Return = Return Var deriving (Show, Eq)
-data Boolean = BExp Expression Relator Expression deriving (Show, Eq)
-data Assign = Ass Var Expression deriving (Show, Eq)
-data If = If Boolean Statements | Elif Boolean Statements Statements deriving (Show, Eq)
-data While = While Boolean Statements deriving (Show, Eq)
-data Statement = WSt While | ISt If | ASt Assign | RSt ReadSt | PSt Print deriving (Show, Eq)
-data Statements = Eps | St Statement Statements deriving (Show, Eq)
-data ProcedureBody = Body Statements Return deriving (Show, Eq)
-data Arguments = Arg Var | Args Var Arguments deriving (Show, Eq)
-data Main = Main Arguments ProcedureBody deriving (Show, Eq)
+data ExpressionNested = ECall Call | ENum Integer | EVar Var | Exp Expression deriving (Show,Eq,Generic)
+data Expression = Pos ExpressionNested | Neg ExpressionNested | Term ExpressionNested Operator ExpressionNested deriving (Show,Eq,Generic)
+newtype Return = Return Var deriving (Show,Eq,Generic)
+data Boolean = BExp Expression Relator Expression deriving (Show,Eq,Generic)
+data Assign = Ass Var Expression deriving (Show,Eq,Generic)
+data If = If Boolean Statements | Elif Boolean Statements Statements deriving (Show,Eq,Generic)
+data While = While Boolean Statements deriving (Show,Eq,Generic)
+data Statement = WSt While | ISt If | ASt Assign | RSt ReadSt | PSt Print deriving (Show,Eq,Generic)
+data Statements = Eps | St Statement Statements deriving (Show,Eq,Generic)
+data ProcedureBody = Body Statements Return deriving (Show,Eq,Generic)
+data Arguments = Arg Var | Args Var Arguments deriving (Show,Eq,Generic)
+data Main = Main Arguments ProcedureBody deriving (Show,Eq,Generic)
 
 {-| --------------------------
        auxiliary functions
@@ -322,11 +325,11 @@ mainParseEOF = do
           Extension 3.1: Procedure Calls
 -}  ------------------------
 
-data Program = Prog Main Procedures deriving (Show, Eq)
-data Procedures = Nil | Procs Procedure Procedures deriving (Show, Eq)
-data Procedure = Proc Var Arguments ProcedureBody deriving (Show, Eq)
-data Call = Call Var ArgList deriving (Show, Eq)
-data ArgList = ArgI Expression | ArgsI Expression ArgList deriving (Show, Eq)
+data Program = Prog Main Procedures deriving (Show,Eq,Generic)
+data Procedures = Nil | Procs Procedure Procedures deriving (Show,Eq,Generic)
+data Procedure = Proc Var Arguments ProcedureBody deriving (Show,Eq,Generic)
+data Call = Call Var ArgList deriving (Show,Eq,Generic)
+data ArgList = ArgI Expression | ArgsI Expression ArgList deriving (Show,Eq,Generic)
 
 callE :: Parser ExpressionNested
 callE = do
@@ -382,8 +385,8 @@ programParseEOF = do
           Extension 3.1: IO
 -}  ------------------------
 
-newtype Print = Print Expression deriving (Eq, Show)
-newtype ReadSt = Read Var deriving (Eq, Show)
+newtype Print = Print Expression deriving (Show,Eq,Generic)
+newtype ReadSt = Read Var deriving (Show,Eq,Generic)
 
 printParse :: Parser Print
 printParse = do
