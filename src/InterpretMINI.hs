@@ -254,4 +254,5 @@ printEval (Print expr) = do
                       ev <- expEval expr
                       liftIO $ putStr "MINI print: "
                       liftIO $ print (strip ev)
+                      liftIO $ putChar '\n'
                       where strip (Left i) = i
