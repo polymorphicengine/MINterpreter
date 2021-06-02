@@ -8,7 +8,7 @@ import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.QuickCheck(Arbitrary, arbitrary, Property, suchThat, (===), generate, quickCheck, oneof)
 import Test.QuickCheck.Gen(Gen)
-import Generic.Random
+import Generic.Random(genericArbitrary, genericArbitrary', uniform, withBaseCase)
 
 main :: IO ()
 main = hspec spec
@@ -21,10 +21,10 @@ instance Arbitrary Call where
   arbitrary = genericArbitrary uniform
 
 instance Arbitrary ExpressionNested where
-  arbitrary =  oneof  [ECall <$> arbitrary, ENum <$> (suchThat arbitrary (\i -> i >= 0)), Exp <$> arbitrary]
+  arbitrary =  oneof  [ECall <$> arbitrary, ENum <$> (suchThat arbitrary (\i -> i >= 0)), Exp <$> arbitrary, EVar <$> arbitrary]
 
 instance Arbitrary Expression where
-  arbitrary = genericArbitrary' uniform `withBaseCase` (return (Pos $ ENum 1))
+  arbitrary = genericArbitrary' uniform
 
 instance Arbitrary Operator where
   arbitrary = genericArbitrary uniform
