@@ -28,6 +28,7 @@ dependencies:
 - QuickCheck
 - prettyprinter
 - generic-random
+- optparse-applicative
 
 library:
   source-dirs: src
