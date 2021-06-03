@@ -8,10 +8,10 @@ module ParseMINI where
 
 import GHC.Generics
 import Text.Parsec.String(Parser)
-import Text.Parsec(many, satisfy, try, (<|>), parse)
+import Text.Parsec --(many, satisfy, try, (<|>), parse, (<?>))
 import Text.Parsec.Char(char, oneOf, digit, string)
 import Text.Parsec.Combinator(choice, eof, between, many1)
-import Text.Parsec.Error(ParseError)
+import Text.Parsec.Error
 import Data.Char (isLetter, isDigit)
 import Control.Monad(void)
 
@@ -48,6 +48,7 @@ data Statements = Eps | St Statement Statements deriving (Show,Eq,Generic)
 data ProcedureBody = Body Statements Return deriving (Show,Eq,Generic)
 data Arguments = Arg Var | Args Var Arguments deriving (Show,Eq,Generic)
 data Main = Main Arguments ProcedureBody deriving (Show,Eq,Generic)
+
 
 {-| --------------------------
        auxiliary functions
@@ -185,9 +186,7 @@ expTerm = do
 -- braced expression
 bracesE :: Parser ExpressionNested
 bracesE = do
-      void $ lexeme $ char '('
-      e <- expParse
-      void $ lexeme $ char ')'
+      e <- lexeme $ betweenParens expParse
       return $ Exp e
 
 -- boolean expression
@@ -222,11 +221,11 @@ expParseWithEOF = do
 -- variable assignment
 assignParse :: Parser Assign
 assignParse = do
-            x <- lexeme $ variable
-            y <- lexeme $ char '='
-            z <- lexeme $ expParse
-            semi <- lexeme $ char ';'
-            return $ Ass x z
+           x <- lexeme $ variable
+           y <- lexeme $ char '='
+           z <- lexeme $ expParse
+           semi <- lexeme $ char ';'
+           return $ Ass x z
 
 -- if statement
 ifParse' :: Parser If
@@ -403,3 +402,51 @@ readParse = do
       return $ Read var
 
 -- "procedure main (x) {z = x + 2; print_int(z*2); return z; }"
+
+
+{-| ------------------------
+          Extension 3.4: Erorrs
+-}  ------------------------
+
+{-
+
+data Type = E00 | E01 | E02 | E03 | E04 | E05
+
+instance Show Type where
+  show E00 = "E00: Unknown error"
+  show E01 = "E01: mismatched parantheses"
+  show E02 = "E02: unknown keyword"
+  show E03 = "E03: missing semicolon"
+  show E04 = "E04: invalid identifier"
+  show E05 = "E05: missing return statement at the end of procedure"
+
+data PError = PError {typ :: Type, pos:: SourcePos}
+
+instance Show PError where
+  show (PError t pos) = "The following error occured at " ++ show pos ++ ":" ++ "\n" ++ show t
+
+transformError :: ParseError -> PError
+transformError p = PError typ (errorPos p)
+            where msgs = errorMessages p
+                  typ = getType (transformMessages msgs)
+
+transformMessages :: [Message] -> [String]
+transformMessages [] = []
+transformMessages ((Expect s):ms) = s:(transformMessages ms)
+transformMessages (m:ms) = (transformMessages ms)
+
+getType :: [String] -> Type
+getType [] = E00
+getType (x:_) = case x of
+                  "E01" -> E01
+                  "E02" -> E02
+                  "E03" -> E03
+                  "E04" -> E04
+                  "E05" -> E05
+                  _ -> E00
+
+parse' ::  Parser a -> SourceName -> String -> Either PError a
+parse' p s i = case parse p s i of
+                      (Left err) -> Left $ transformError err
+                      (Right x) -> Right x
+-}
