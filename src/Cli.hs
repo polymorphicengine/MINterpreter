@@ -4,7 +4,25 @@ import Options.Applicative
 
 data Mode = Format | Normal deriving(Show, Eq)
 
-data Cli = Pretty Mode FilePath | Exec FilePath [String] deriving(Show, Eq)
+data Cli = Pretty Mode FilePath | Exec FilePath [String] | Check Bool FilePath | Ext Bool | Logo Bool deriving(Show, Eq)
+
+parserLogoBool :: Parser Bool
+parserLogoBool = flag True False
+  ( long "logo"
+ <> short 'l'
+ <> help "Print the logo of the MINterpreter" )
+
+parserExtensionsBool :: Parser Bool
+parserExtensionsBool = flag True False
+  ( long "extensions"
+ <> short 'e'
+ <> help "Print all available MINI extensions" )
+
+parserCheckBool :: Parser Bool
+parserCheckBool = flag True False
+  ( long "check"
+ <> short 'c'
+ <> help "Check a program for syntax errors" )
 
 parserMode :: Parser Mode
 parserMode = flag Normal Format
@@ -24,12 +42,21 @@ parserPretty = Pretty <$> parserMode <*> parserPath
 parserExec :: Parser Cli
 parserExec = Exec <$>  parserPath <*> parserArgs
 
+parserCheck :: Parser Cli
+parserCheck = Check <$> parserCheckBool <*> parserPath
+
+parserExtensions :: Parser Cli
+parserExtensions = Ext <$> parserExtensionsBool
+
+parserLogo :: Parser Cli
+parserLogo = Logo <$> parserLogoBool
+
 parser :: Parser Cli
-parser =  parserExec <|> parserPretty
+parser =  parserExec <|> parserPretty <|> parserCheck <|> parserExtensions <|> parserLogo
 
 execCli :: IO Cli
 execCli = do
   x <- execParser $ (info $ parser <**> helper) (fullDesc
-     <> progDesc "Either execute or format a MINI program"
-     <> header "MINterpreter - an interpreter with pretty print capabilities" )
+     <> progDesc "Execute, format or check the syntax of a MINI program"
+     <> header "MINterpreter - an interpreter with pretty print functionality" )
   return x
