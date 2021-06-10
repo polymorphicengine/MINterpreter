@@ -320,9 +320,9 @@ mainParseEOF = do
         eof
         return prog
 
-{-| ------------------------
+{-| ------------------------------------------
           Extension 3.1: Procedure Calls
--}  ------------------------
+-}  ------------------------------------------
 
 data Program = Prog Main Procedures deriving (Show,Eq,Generic)
 data Procedures = Nil | Procs Procedure Procedures deriving (Show,Eq,Generic)
@@ -380,9 +380,9 @@ programParseEOF = do
 --procedure main (x) {z = proc(x,2); return x;} procedure proc (y,z) {x = y*z; z = read_int(); print_int(4*x); return x;}
 
 
-{-| ------------------------
-          Extension 3.1: IO
--}  ------------------------
+{-| ---------------------------------
+          Extension 3.2: IO
+-}  ---------------------------------
 
 newtype Print = Print Expression deriving (Show,Eq,Generic)
 newtype ReadSt = Read Var deriving (Show,Eq,Generic)
@@ -404,9 +404,9 @@ readParse = do
 -- "procedure main (x) {z = x + 2; print_int(z*2); return z; }"
 
 
-{-| ------------------------
+{-| --------------------------------
           Extension 3.4: Erorrs
--}  ------------------------
+-}  --------------------------------
 
 {-
 
