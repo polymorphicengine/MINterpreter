@@ -6,12 +6,10 @@ import Test.QuickCheck
 import Test.QuickCheck.Monadic (assert, monadicIO, pick, pre, run)
 import Text.Parsec(parse)
 
--- helper
 
 strip :: Either a b -> a
 strip (Left i) = i
 
--- fibonacci
 
 fib :: [Integer]
 fib = 1 : 1 : zipWith (+) fib (tail fib)
@@ -26,13 +24,12 @@ fibParsed :: Program
 fibParsed = prog
         where (Right prog) = parse programParseEOF "" miniProgFib
 
+-- | checks the correctness of the fibonacci mini program
 prog1_corr :: Int -> Property
 prog1_corr n = n >= 0 ==> monadicIO $ do
               x <- run $ runProgram [toInteger n] fibParsed
               let val = strip x
               assert $ (fibonacci n) == val
-
--- fibonacci recursive (performs really badly)
 
 miniProgFibRec :: String
 miniProgFibRec = "procedure main (n) {res = fib(n); return res; } procedure fib (m) {if (m == 0) { result = 1; } if (m == 1) { result = 1; } if (m > 1) { result = fib(m - 1) + fib(m - 2); } return result;}"
@@ -41,6 +38,7 @@ fibRecParsed :: Program
 fibRecParsed = prog
         where (Right prog) = parse programParseEOF "" miniProgFibRec
 
+-- | checks the correctness of the recursive fibonacci mini program
 prog1_corr' :: Int -> Property
 prog1_corr' n = n >= 0  && n <= 15 ==> monadicIO $ do
               x <- run $ runProgram [toInteger n] fibRecParsed
@@ -62,6 +60,7 @@ primeParsed :: Program
 primeParsed = prog
         where (Right prog) = parse programParseEOF "" miniProgPrime
 
+-- | checks the correctness of the sieve of erathosthenes mini program
 prog2_corr :: Int -> Property
 prog2_corr n = n >= 0 ==> monadicIO $ do
               x <- run $ runProgram [toInteger n] primeParsed
@@ -77,6 +76,7 @@ lcmParsed :: Program
 lcmParsed = prog
         where (Right prog) = parse programParseEOF "" miniProgLCM
 
+-- | checks the correctness of the lcm mini program
 prog3_corr :: Int -> Int -> Property
 prog3_corr n m = n >= 0 && m >= 0 ==> monadicIO $ do
               x <- run $ runProgram [toInteger n, toInteger m] lcmParsed

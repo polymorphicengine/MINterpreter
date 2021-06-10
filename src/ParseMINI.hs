@@ -2,10 +2,6 @@
 
 module ParseMINI where
 
-{-| ------------------------
-            import
--}  ------------------------
-
 import GHC.Generics
 import Text.Parsec.String(Parser)
 import Text.Parsec --(many, satisfy, try, (<|>), parse, (<?>))
@@ -15,7 +11,7 @@ import Text.Parsec.Error
 import Data.Char (isLetter, isDigit)
 import Control.Monad(void)
 
-{-| ------------------------
+{-  ------------------------
            terminals
 -}  ------------------------
 
@@ -24,7 +20,7 @@ data Operator = Plus | Minus | Times | Divide deriving (Show, Eq, Generic)
 -- data Digit = Zero | One | Two | Three | Four | Five | Six | Seven | Eight | Nine deriving (Show, Eq, Enum)
 -- data Letter = A | B | C | D | E | F | G | H | I | J | K | L | M | N | O | P | Q | R | S | T | U | V | W | X | Y | Z deriving (Show, Eq)
 
-{-| ------------------------
+{-  ------------------------
           non-Terminals
 -}  ------------------------
 
@@ -34,8 +30,9 @@ data Operator = Plus | Minus | Times | Divide deriving (Show, Eq, Generic)
 -- newtype Ident = Ident String deriving (Show, Eq)
 
 type Name = String
+-- | variables are typesafe strings
 newtype Var = Var Name deriving (Show,Eq,Generic)
--- data Number = Digit Digit | Number Digit Number deriving (Show, Eq)
+-- | digits are modelled as integers
 data ExpressionNested = ECall Call | ENum Integer | EVar Var | Exp Expression deriving (Show,Eq,Generic)
 data Expression = Pos ExpressionNested | Neg ExpressionNested | Term ExpressionNested Operator ExpressionNested deriving (Show,Eq,Generic)
 newtype Return = Return Var deriving (Show,Eq,Generic)
@@ -50,7 +47,7 @@ data Arguments = Arg Var | Args Var Arguments deriving (Show,Eq,Generic)
 data Main = Main Arguments ProcedureBody deriving (Show,Eq,Generic)
 
 
-{-| --------------------------
+{-  --------------------------
        auxiliary functions
 -}  --------------------------
 
@@ -60,32 +57,32 @@ isSmallLetter c = elem c "abcdefghijklmnopqrstuvwxyz"
 isOperator:: Char -> Bool
 isOperator c = elem c "+-*/"
 
---  parse (>= 1) ASCII digits, return parsed characters
+-- | parse (>= 1) ASCII digits, return parsed characters
 num :: Parser Integer
 num = do
     n <- many1 digit
     return (read n)
 
--- consuming whitespace
+-- | consuming whitespace
 whitespace :: Parser ()
 whitespace = void $ many $ oneOf " \n\t"
 
--- consume trailing whitespace
+-- | consume trailing whitespace
 lexeme :: Parser a -> Parser a
 lexeme p = do
            x <- p
            whitespace
            return x
 
--- parse single character, return parsed character
+-- | parse single character, return parsed character
 symbol :: Char -> Parser Char
 symbol c = lexeme $ char c
 
--- parse "(", parse ")", return enclosed characters
+-- | parse "(", parse ")", return enclosed characters
 betweenParens :: Parser a -> Parser a
 betweenParens p = between (symbol '(') (symbol ')') p
 
--- parse "{", parse "}", return enclosed characters
+-- | parse "{", parse "}", return enclosed characters
 betweenParensCurly :: Parser a -> Parser a
 betweenParensCurly p = between (symbol '{') (symbol '}') p
 
@@ -93,7 +90,7 @@ catch:: Either ParseError a -> a
 catch (Left err) = error (show err)
 catch (Right expr) = expr
 
-{-| --------------------------
+{-  --------------------------
          symbol parsers
 -}  --------------------------
 
@@ -136,17 +133,17 @@ geP = do
      x <- string ">"
      return GE
 
-{-| --------------------------------------
+{-  --------------------------------------
          well-formed-formula parsers
 -}  --------------------------------------
 
--- numerical expression
+-- | parses numerical expressions
 numE :: Parser ExpressionNested
 numE = do
   x <- lexeme num
   return $ ENum x
 
--- variable expression
+-- | parses variable expressions
 variable :: Parser Var
 variable = do
     fc <- firstChar
@@ -156,26 +153,26 @@ variable = do
     firstChar = satisfy (\a -> isSmallLetter a)
     nonFirstChar = satisfy (\a -> isDigit a || isSmallLetter a || a == '_')
 
--- nested variable expression
+-- | parses nested variable expressions
 varE :: Parser ExpressionNested
 varE = do
   x <- lexeme variable
   return $ EVar x
 
--- postives expression
+-- | parses postive expressions
 expPos :: Parser Expression
 expPos = do
       x <- lexeme expNestParse
       return $ Pos x
 
--- negative expression
+-- | parses negative expressions
 expNeg :: Parser Expression
 expNeg = do
       fc <- char '-'
       x <- lexeme expNestParse
       return $ Neg x
 
--- combined expression
+-- | parses combined expressions
 expTerm:: Parser Expression
 expTerm = do
       x <- lexeme expNestParse
@@ -183,13 +180,13 @@ expTerm = do
       y <- lexeme expNestParse
       return $ Term x o y
 
--- braced expression
+-- | parses bracketed expression
 bracesE :: Parser ExpressionNested
 bracesE = do
       e <- lexeme $ betweenParens expParse
       return $ Exp e
 
--- boolean expression
+-- | parses boolean expressions
 booleanParse :: Parser Boolean
 booleanParse = do
             x <- lexeme expParse
@@ -197,28 +194,26 @@ booleanParse = do
             y <- lexeme expParse
             return $ BExp x r y
 
--- combination parsers (well-formed-formula)
+-- combine parsers to parse well-formed-expressions
+
+-- | combined nested expression parser
 expNestParse :: Parser ExpressionNested
 expNestParse = lexeme bracesE <|> (try $ lexeme callE) <|> lexeme varE <|> lexeme numE
 
+-- | combined relator parser
 relatorParse :: Parser Relator
 relatorParse = try geqP <|> try leqP <|> eqP <|> neqP <|> leP <|> geP
 
+-- | combined expression parser
+-- first tries to parse as combined expressions, if that fails, it tries parsing it as a negative or positive expression
 expParse :: Parser Expression
 expParse = choice [try $ lexeme expTerm, lexeme expNeg, lexeme expPos]
 
-expParseWithEOF :: Parser Expression
-expParseWithEOF = do
-                whitespace
-                x <- lexeme expParse
-                eof
-                return x
-
-{-| --------------------------
+{-  --------------------------
            statements
 -}  --------------------------
 
--- variable assignment
+-- | parses variable assignment
 assignParse :: Parser Assign
 assignParse = do
            x <- lexeme $ variable
@@ -227,7 +222,7 @@ assignParse = do
            semi <- lexeme $ char ';'
            return $ Ass x z
 
--- if statement
+-- | parses if statements
 ifParse' :: Parser If
 ifParse' = do
       x <- lexeme $ string "if"
@@ -235,7 +230,7 @@ ifParse' = do
       z <- lexeme $ betweenParensCurly statementsParse
       return $ If y z
 
--- ifelse statement
+-- | parses  if-else statements
 elifParse :: Parser If
 elifParse = do
       x <- lexeme $ string "if"
@@ -245,11 +240,11 @@ elifParse = do
       elS <- lexeme $ betweenParensCurly statementsParse
       return $ Elif y z elS
 
--- if-or-ifelse statement
+-- | combined parser for if statements
 ifParse :: Parser If
 ifParse = try elifParse <|> ifParse'
 
--- while statement
+-- | parses while statements
 whileParse :: Parser While
 whileParse = do
       x <- lexeme $ string "while"
@@ -257,29 +252,31 @@ whileParse = do
       z <- lexeme $ betweenParensCurly statementsParse
       return $ While y z
 
--- empty statement
+-- | parses an empty statement
 emptyParse :: Parser Statements
 emptyParse = return Eps
 
--- statement
+-- | combined parser for statements
+-- it first tries while, if, read and print parsers, if those fail, lastly the assign parser is called
 statementParse :: Parser Statement
 statementParse = (try $ fmap WSt whileParse) <|> (try $ fmap ISt ifParse) <|> (try $ fmap RSt readParse) <|> (try $ fmap PSt printParse) <|> fmap ASt assignParse
 
--- statements
+-- | recursively parse statements
 statementsParseRec :: Parser Statements
 statementsParseRec = do
             x <- lexeme statementParse
             y <- lexeme statementsParse
             return $ St x y
 
+-- | if the recursive parser fails, call the empty parser
 statementsParse :: Parser Statements
 statementsParse = try statementsParseRec <|> emptyParse
 
-{-| --------------------------
+{-  --------------------------
             program
 -}  --------------------------
 
--- return statement
+-- | parse return statements
 returnParse :: Parser Return
 returnParse = do
       x <- lexeme $ string "return"
@@ -287,14 +284,14 @@ returnParse = do
       semi <- lexeme $ char ';'
       return $ Return v
 
--- procedure statement
+-- | parse the procedure body
 procBodyParse :: Parser ProcedureBody
 procBodyParse = do
       stat <- lexeme $ statementsParse
       ret <- lexeme $ returnParse
       return $ Body stat ret
 
--- procedure arguments
+-- | parse the procedure arguments recursively
 argVarParseRec :: Parser Arguments
 argVarParseRec = do
             x <- lexeme $ variable
@@ -302,10 +299,11 @@ argVarParseRec = do
             xs <- lexeme $ argVarParse
             return $ Args x xs
 
+-- | parse the procedure arguments
 argVarParse :: Parser Arguments
 argVarParse = try argVarParseRec <|> (fmap Arg variable)
 
--- program
+-- | parse the main procedure
 mainParse :: Parser Main
 mainParse = do
       key <- lexeme $ string "procedure main"
@@ -320,7 +318,7 @@ mainParseEOF = do
         eof
         return prog
 
-{-| ------------------------------------------
+{- ------------------------------------------
           Extension 3.1: Procedure Calls
 -}  ------------------------------------------
 
@@ -330,12 +328,14 @@ data Procedure = Proc Var Arguments ProcedureBody deriving (Show,Eq,Generic)
 data Call = Call Var ArgList deriving (Show,Eq,Generic)
 data ArgList = ArgI Expression | ArgsI Expression ArgList deriving (Show,Eq,Generic)
 
+-- | parse call expressions
 callE :: Parser ExpressionNested
 callE = do
       ident <- lexeme variable
       args <- lexeme $ betweenParens argListParse
       return $ ECall (Call ident args)
 
+-- | recursively parse arguments to procedure calls
 argListParseRec :: Parser ArgList
 argListParseRec = do
             x <- lexeme expParse
@@ -343,9 +343,11 @@ argListParseRec = do
             xs <- lexeme $ argListParse
             return $ ArgsI x xs
 
+-- | parse arguments to procedure calls
 argListParse :: Parser ArgList
 argListParse = try argListParseRec <|> (fmap ArgI expParse)
 
+-- | parse procedures, analogously to main procedures
 procParse :: Parser Procedure
 procParse = do
   key <- lexeme $ string "procedure"
@@ -354,21 +356,25 @@ procParse = do
   body <- lexeme $ betweenParensCurly procBodyParse
   return $ Proc ident argVars body
 
+-- | recursively parse procedures
 procsParseRec :: Parser Procedures
 procsParseRec = do
             x <- lexeme procParse
             y <- lexeme procsParse
             return $ Procs x y
 
+-- | if the recursive parser fails, return the empty procedure
 procsParse :: Parser Procedures
 procsParse = try procsParseRec <|> (return Nil)
 
+-- | parse programs
 programParse :: Parser Program
 programParse = do
         main <- lexeme mainParse
         procs <- lexeme procsParse
         return $ Prog main procs
 
+-- | parse programs - fails if after the program is no whitespace
 programParseEOF :: Parser Program
 programParseEOF = do
         whitespace
@@ -377,16 +383,14 @@ programParseEOF = do
         return prog
 
 
---procedure main (x) {z = proc(x,2); return x;} procedure proc (y,z) {x = y*z; z = read_int(); print_int(4*x); return x;}
-
-
-{-| ---------------------------------
+{- ---------------------------------
           Extension 3.2: IO
 -}  ---------------------------------
 
 newtype Print = Print Expression deriving (Show,Eq,Generic)
 newtype ReadSt = Read Var deriving (Show,Eq,Generic)
 
+-- | parse print statements
 printParse :: Parser Print
 printParse = do
       string <- lexeme $ string "print_int"
@@ -394,6 +398,7 @@ printParse = do
       sem <- lexeme $ char ';'
       return $ Print expr
 
+-- | parse read statements
 readParse :: Parser ReadSt
 readParse = do
       var <- lexeme $ variable
@@ -401,10 +406,8 @@ readParse = do
       string <- lexeme $ string "read_int();"
       return $ Read var
 
--- "procedure main (x) {z = x + 2; print_int(z*2); return z; }"
 
-
-{-| --------------------------------
+{- --------------------------------
           Extension 3.4: Erorrs
 -}  --------------------------------
 

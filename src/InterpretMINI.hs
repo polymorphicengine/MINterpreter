@@ -1,27 +1,29 @@
 module InterpretMINI where
 
-{-| ------------------------
-            import
--}  ------------------------
-
 import ParseMINI
-
 import Control.Monad.Identity
 import Control.Monad.State
 import Data.Maybe
 import qualified Data.Map as Map
 
+-- | values can be either integers or procedures
+-- since procedure calls are also recognized through identifiers
 type Value = Either Integer Procedure
-type Env = Map.Map Name Value -- mapping from names to values
-type StateID = StateT Env IO -- handling states
+-- | An environment assigns to each name a value
+type Env = Map.Map Name Value
+-- | the stateIO monad is a combination of the IO monad and the State monad
+-- this is achieved by means of the StateT monad transformer
+type StateIO = StateT Env IO -- handling states
 
-{-| ---------------------------------------
+{- ---------------------------------------
         well-formed-expression interpreter
 -}  ---------------------------------------
 
 
--- nested expression
-expNestEval:: ExpressionNested -> StateID Value
+-- | evaluates nested expression
+-- to evaluate a call expression, first the arguments have to be evaluated, and the corresponding procedure has to be looked up in the environment and evaluated with the arguments
+-- to evaluate a variable, its value is looked up in the environemt
+expNestEval:: ExpressionNested -> StateIO Value
 expNestEval (ECall (Call (Var name) argList)) = do
                           env <- get
                           case Map.lookup name env of
@@ -31,23 +33,20 @@ expNestEval (ECall (Call (Var name) argList)) = do
                                                                   vals <- evalExpressions (argsListToExp argList)
                                                                   let inputs = map strip vals
                                                                   val <- procedureEval inputs p
-                                                                  put $ restoreEnv env args       --restore the environment
+                                                                  put env   -- the original environment is restored
                                                                   return val
                                                                   where strip (Left i) = i
-
 expNestEval (ENum i) = return (Left i)
-
 expNestEval (EVar (Var name)) = do
                           env <- get
                           case Map.lookup name env of
                                     Nothing -> error "undefined variable call"
                                     (Just (Left val) ) -> return (Left val)
                                     (Just (Right procedure)) -> error "something went wrong"
-
 expNestEval (Exp expr) = expEval expr
 
--- combined expression
-expEval :: Expression -> StateID Value
+-- | evaluates combined expressions
+expEval :: Expression -> StateIO Value
 expEval (Pos expr) = expNestEval expr
 expEval (Neg expr) =  do
                 val <- expNestEval expr
@@ -67,8 +66,8 @@ expEval (Term exp1 op exp2) = do
                               getOp Times = (*)
                               getOp Divide = (div)
 
--- boolean expression
-boolEval :: Boolean -> StateID Bool
+-- | evaluates boolean expressions
+boolEval :: Boolean -> StateIO Bool
 boolEval (BExp exp1 rel exp2) = do
                       val1 <- expEval exp1
                       val2 <- expEval exp2
@@ -84,19 +83,20 @@ boolEval (BExp exp1 rel exp2) = do
                             getRel LE = (<)
                             getRel GE = (>)
 
-{-| ---------------------------------------
+{- ----------------------------------------
             statement interpreter
 -}  ---------------------------------------
 
--- variable assignment
-assignEval :: Assign -> StateID ()
+-- | evaluates a variable assignment
+-- by evaluating the expression and updating the environment
+assignEval :: Assign -> StateIO ()
 assignEval (Ass (Var name) expr) = do
                             env <- get
                             num <- expEval expr
                             put (Map.insert name num env)
 
--- if-or-ifelse statement
-ifEval:: If -> StateID ()
+-- | evaluate if and if-else statements
+ifEval:: If -> StateIO ()
 ifEval (If boolExp stats) = do
                       bool <- boolEval boolExp
                       if bool then
@@ -110,8 +110,9 @@ ifEval (Elif boolExp stats1 stats2) = do
                       else
                         statsEval stats2
 
--- while statement
-whileEval:: While -> StateID ()
+-- | evaluates while statements
+-- by evaluating the inner statements once if the boolean expression evaluates to true and calls itself again
+whileEval:: While -> StateIO ()
 whileEval w@(While boolExp stats) = do
                       bool <- boolEval boolExp
                       if bool then
@@ -121,27 +122,27 @@ whileEval w@(While boolExp stats) = do
                       else
                         return ()
 
--- statement
-statEval:: Statement -> StateID ()
+-- | evaluates statements by combining the previous evaluation functions
+statEval:: Statement -> StateIO ()
 statEval (WSt w) = whileEval w
 statEval (ISt i) = ifEval i
 statEval (ASt a) = assignEval a
 statEval (RSt r) = readEval r
 statEval (PSt p) = printEval p
 
--- statements
-statsEval :: Statements -> StateID ()
+-- | evaluates statements recursively
+statsEval :: Statements -> StateIO ()
 statsEval Eps = return ()
 statsEval (St stat stats) = do
                         statEval stat
                         statsEval stats
 
-{-| --------------------------
+{- ---------------------------
             program
 -}  --------------------------
 
--- return statement
-returnEval :: Return -> StateID Value
+-- | evaluates the return statement by looking up the name in the environment
+returnEval :: Return -> StateIO Value
 returnEval (Return (Var name)) = do
                           env <- get
                           case Map.lookup name env of
@@ -149,14 +150,14 @@ returnEval (Return (Var name)) = do
                                 (Just (Left val) ) -> return (Left val)
                                 (Just (Right procedure)) -> error "something went wrong"
 
--- procedure statement
-procedureBodyEval:: ProcedureBody -> StateID Value
+-- | evaluates the procedure body
+procedureBodyEval:: ProcedureBody -> StateIO Value
 procedureBodyEval (Body stats ret) = do
                               statsEval stats
                               returnEval ret
 
--- procedure arguments, changes only the environment
-argumentEval :: Arguments -> [Integer] -> StateID ()
+-- | evaluates the procedure arguments by updating the environment
+argumentEval :: Arguments -> [Integer] -> StateIO ()
 argumentEval (Arg (Var name)) [i] = do
                       env <- get
                       put $ Map.insert name (Left i) env
@@ -166,19 +167,20 @@ argumentEval (Args (Var name) as) (i:is) = do
                       put $ Map.insert name (Left i) env
                       argumentEval as is
 
-{-| --------------------------
+{- ---------------------------
        auxiliary functions
 -}  --------------------------
 
--- procedure arguments
+
 argsToList:: Arguments -> [Var]
 argsToList (Arg v) = [v]
 argsToList (Args v vs) = v:(argsToList vs)
 
-genRun :: (b -> StateID a) -> b -> Env -> IO a
+-- | generic implementation for running the StateIO monad
+genRun :: (b -> StateIO a) -> b -> Env -> IO a
 genRun eval input env = evalStateT (eval input) env
 
-{-| -------------------------------------
+{- --------------------------------------
        Extension 3.1: Procedure Calls
 -}  -------------------------------------
 
@@ -186,7 +188,7 @@ argsListToExp:: ArgList -> [Expression]
 argsListToExp (ArgI ex) = [ex]
 argsListToExp (ArgsI ex exs) = ex:(argsListToExp exs)
 
-evalExpressions:: [Expression] -> StateID [Value]
+evalExpressions:: [Expression] -> StateIO [Value]
 evalExpressions [expr] = do
                         ev <- expEval expr
                         return [ev]
@@ -195,53 +197,43 @@ evalExpressions (expr:exprs) = do
                         evs <- evalExpressions exprs
                         return $ ev1:evs
 
--- evalExpressions:: Env -> [Expression] -> [IO Value]
--- evalExpressions env exps = map (\x -> genRun expEval x env) exps
-
--- valuesToInts :: [IO Value] -> [IO Integer]
--- valuesToInts vals = fmap strip vals
---               where strip (Left i) = i
---                     strip (Right expr) = error "TODO"
-
-procedureEval :: [Integer] -> Procedure -> StateID Value
+-- | evaluates a procedure with given arguments
+procedureEval :: [Integer] -> Procedure -> StateIO Value
 procedureEval inputs (Proc name args body) = do
                                   argumentEval args inputs
                                   procedureBodyEval body
 
-proceduresEval :: Procedures -> StateID ()
+-- | writes procedures to the environment
+proceduresEval :: Procedures -> StateIO ()
 proceduresEval Nil = return ()
 proceduresEval (Procs p@(Proc (Var name) _ _) ps) = do
                                         env <- get
                                         put $ Map.insert name (Right p) env
                                         proceduresEval ps
 
-mainEval :: [Integer] -> Main -> StateID Value
+-- | evaluates a main procedure on a given input
+mainEval :: [Integer] -> Main -> StateIO Value
 mainEval inputs (Main args body) = do
                       argumentEval args inputs
                       procedureBodyEval body
 
-evalProgram :: [Integer] -> Program -> StateID Value
+-- | evaluates a program on a given input
+evalProgram :: [Integer] -> Program -> StateIO Value
 evalProgram inputs (Prog main procs) = do
                               proceduresEval procs
                               mainEval inputs main
 
+-- | runs the program on given inputs
 runProgram :: [Integer] -> Program -> IO Value
 runProgram inputs p = genRun (evalProgram inputs) p Map.empty
 
-restoreEnv :: Env -> Arguments -> Env
-restoreEnv env (Arg (Var n)) = case Map.lookup n env of
-                                      Nothing -> env
-                                      (Just val) ->  Map.insert n val env
-restoreEnv env (Args (Var n) as) = case Map.lookup n env of
-                                      Nothing -> restoreEnv env as
-                                      (Just val) ->  Map.insert n val (restoreEnv env as)
 
-{-| ----------------------------
+{- -----------------------------
           Extension 3.1: IO
 -}  ----------------------------
 
-
-readEval :: ReadSt -> StateID ()
+-- | evaluates read expressions
+readEval :: ReadSt -> StateIO ()
 readEval (Read (Var name)) = do
                       env <- get
                       liftIO $ putStrLn "Enter a value: \n"
@@ -249,7 +241,8 @@ readEval (Read (Var name)) = do
                       let number = read input :: Integer
                       put $ Map.insert name (Left number) env
 
-printEval :: Print -> StateID ()
+-- | evaluates print expressions
+printEval :: Print -> StateIO ()
 printEval (Print expr) = do
                       ev <- expEval expr
                       liftIO $ putStr "MINI print: "
