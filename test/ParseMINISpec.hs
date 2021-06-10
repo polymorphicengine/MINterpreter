@@ -10,6 +10,11 @@ main = hspec spec
 
 spec :: Spec
 spec = do
+
+{-| --------------------------------
+          Tests: MINI Core
+-}  --------------------------------
+
   describe "whitespace" $ do
     it "always suceeds" $ do
         (parse whitespace "" "\t  foo bar\n") `shouldBe` (Right ())
@@ -144,6 +149,38 @@ spec = do
     it "parses a program that counts the number of digits a number n" $ do
           (parse mainParse "" "procedure main (n) {counter = 0; while (n!= \t 0 ) { n = n/10; counter = counter +1; \n} return counter;}") `shouldBe` Right (Main (Arg (Var "n")) (Body (St (ASt (Ass (Var "counter") (Pos (ENum 0)))) (St (WSt (While (BExp (Pos (EVar (Var "n"))) NEQ (Pos (ENum 0))) (St (ASt (Ass (Var "n") (Term (EVar (Var "n")) Divide (ENum 10)))) (St (ASt (Ass (Var "counter") (Term (EVar (Var "counter")) Plus (ENum 1)))) Eps)))) Eps)) (Return (Var "counter"))))
 
+{-| -----------------------------------
+          Tests: MINI Extensions
+-}  -----------------------------------
+
+  describe "callE" $ do
+    it "parses call expressions, fails otherwise" $ do
+          (parse callE "" "xyz___1__2_3(3,1415,9265359,-1)") `shouldBe` Right (ECall (Call (Var "xyz___1__2_3") (ArgsI (Pos (ENum 3)) (ArgsI (Pos (ENum 1415)) (ArgsI (Pos (ENum 9265359)) (ArgI (Neg (ENum 1))))))))
+          (parse callE "" "x      (  -1,  1  )        ") `shouldBe` Right (ECall (Call (Var "x") (ArgsI (Neg (ENum 1)) (ArgI (Pos (ENum 1))))))
+          (show (parse callE "" "x      =(  -1,  1, )        ")) `shouldBe` ("Left (line 1, column 8):\nunexpected \"=\"\nexpecting \"(\"")
+          (parse callE "" "x((2+3), x+1, y, proc(23))") `shouldBe` Right (ECall (Call (Var "x") (ArgsI (Pos (Exp (Term (ENum 2) Plus (ENum 3)))) (ArgsI (Term (EVar (Var "x")) Plus (ENum 1)) (ArgsI (Pos (EVar (Var "y"))) (ArgI (Pos (ECall (Call (Var "proc") (ArgI (Pos (ENum 23))))))))))))
+
+-- just checking whether we added call_expr to int_expr_nested correctly
+  describe "expParse" $ do
+    it "parses proper expressions, fails otherwise" $ do
+          (parse expParse "" "input(1,2,3,4,5)") `shouldBe` Right (Pos (ECall (Call (Var "input") (ArgsI (Pos (ENum 1)) (ArgsI (Pos (ENum 2)) (ArgsI (Pos (ENum 3)) (ArgsI (Pos (ENum 4)) (ArgI (Pos (ENum 5))))))))))
+          (parse expParse "" "proc + func(1,23)") `shouldBe` Right (Term (EVar (Var "proc")) Plus (ECall (Call (Var "func") (ArgsI (Pos (ENum 1)) (ArgI (Pos (ENum 23)))))))
+          (parse expParse "" "p(r)+ func(1,23)") `shouldBe` Right (Term (ECall (Call (Var "p") (ArgI (Pos (EVar (Var "r")))))) Plus (ECall (Call (Var "func") (ArgsI (Pos (ENum 1)) (ArgI (Pos (ENum 23)))))))
+
+  describe "procParse" $ do
+    it "parses a procedure, fails otherwise" $ do
+          (parse procParse "" "procedure myproc (x,y__z) {c = x - y__z; return c ; }") `shouldBe` Right (Proc (Var "myproc") (Args (Var "x") (Arg (Var "y__z"))) (Body (St (ASt (Ass (Var "c") (Term (EVar (Var "x")) Minus (EVar (Var "y__z"))))) Eps) (Return (Var "c"))))
+          (parse procParse "" "procedure myothproc (x,y,z) {return tu_nix;}") `shouldBe` Right (Proc (Var "myothproc") (Args (Var "x") (Args (Var "y") (Arg (Var "z")))) (Body Eps (Return (Var "tu_nix"))))
+
+  describe "procsParseRec" $ do
+    it "parses procedures, fails otherwise" $ do
+          (parse procsParseRec "" "procedure proc (identity) {c = proc2 (identity); return c ; } procedure proc2 (c) {return c ;}") `shouldBe` Right (Procs (Proc (Var "proc") (Arg (Var "identity")) (Body (St (ASt (Ass (Var "c") (Pos (ECall (Call (Var "proc2") (ArgI (Pos (EVar (Var "identity"))))))))) Eps) (Return (Var "c")))) (Procs (Proc (Var "proc2") (Arg (Var "c")) (Body Eps (Return (Var "c")))) Nil))
+          (parse procsParseRec "" "procedure proc ( a , b ) {c = a - b; return c ; } procedure proc ( a , b ) {if (a <  b) {c =  a  ;} else    {c =b  ;  }   return c ;}") `shouldBe` Right (Procs (Proc (Var "proc") (Args (Var "a") (Arg (Var "b"))) (Body (St (ASt (Ass (Var "c") (Term (EVar (Var "a")) Minus (EVar (Var "b"))))) Eps) (Return (Var "c")))) (Procs (Proc (Var "proc") (Args (Var "a") (Arg (Var "b"))) (Body (St (ISt (Elif (BExp (Pos (EVar (Var "a"))) LE (Pos (EVar (Var "b")))) (St (ASt (Ass (Var "c") (Pos (EVar (Var "a"))))) Eps) (St (ASt (Ass (Var "c") (Pos (EVar (Var "b"))))) Eps))) Eps) (Return (Var "c")))) Nil))
+
   describe "programParse" $ do
-    it "parses a program that contains named procedures" $ do
-      (parse programParseEOF "" "procedure main (n) {res = fib(n); return res; } procedure fib (m) {if (m == 0) { result = 1; } if (m == 1) { result = 1; } if (m > 1) { result = fib(m - 1) + fib(m - 2); } return result;}") `shouldBe` Right (Prog (Main (Arg (Var "n")) (Body (St (ASt (Ass (Var "res") (Pos (ECall (Call (Var "fib") (ArgI (Pos (EVar (Var "n"))))))))) Eps) (Return (Var "res")))) (Procs (Proc (Var "fib") (Arg (Var "m")) (Body (St (ISt (If (BExp (Pos (EVar (Var "m"))) EQQ (Pos (ENum 0))) (St (ASt (Ass (Var "result") (Pos (ENum 1)))) Eps))) (St (ISt (If (BExp (Pos (EVar (Var "m"))) EQQ (Pos (ENum 1))) (St (ASt (Ass (Var "result") (Pos (ENum 1)))) Eps))) (St (ISt (If (BExp (Pos (EVar (Var "m"))) GE (Pos (ENum 1))) (St (ASt (Ass (Var "result") (Term (ECall (Call (Var "fib") (ArgI (Term (EVar (Var "m")) Minus (ENum 1))))) Plus (ECall (Call (Var "fib") (ArgI (Term (EVar (Var "m")) Minus (ENum 2)))))))) Eps))) Eps))) (Return (Var "result")))) Nil))
+    it "parses a program that calculates the n-th fibonacci number" $ do
+          (parse programParseEOF "" "procedure main (n) {res = fib(n); return res; } procedure fib (m) {if (m == 0) { result = 1; } if (m == 1) { result = 1; } if (m > 1) { result = fib(m - 1) + fib(m - 2); } return result;}") `shouldBe` Right (Prog (Main (Arg (Var "n")) (Body (St (ASt (Ass (Var "res") (Pos (ECall (Call (Var "fib") (ArgI (Pos (EVar (Var "n"))))))))) Eps) (Return (Var "res")))) (Procs (Proc (Var "fib") (Arg (Var "m")) (Body (St (ISt (If (BExp (Pos (EVar (Var "m"))) EQQ (Pos (ENum 0))) (St (ASt (Ass (Var "result") (Pos (ENum 1)))) Eps))) (St (ISt (If (BExp (Pos (EVar (Var "m"))) EQQ (Pos (ENum 1))) (St (ASt (Ass (Var "result") (Pos (ENum 1)))) Eps))) (St (ISt (If (BExp (Pos (EVar (Var "m"))) GE (Pos (ENum 1))) (St (ASt (Ass (Var "result") (Term (ECall (Call (Var "fib") (ArgI (Term (EVar (Var "m")) Minus (ENum 1))))) Plus (ECall (Call (Var "fib") (ArgI (Term (EVar (Var "m")) Minus (ENum 2)))))))) Eps))) Eps))) (Return (Var "result")))) Nil))
+    it "parses a program that calculates the difference of two numbers by means of a procedure that calculates the difference of two numbers" $ do
+          (parse programParseEOF "" "procedure main ( a , b ) {c = diff(a,b); return c ; } procedure diff (a, b) {c = a - b; return c ;} ") `shouldBe` Right (Prog (Main (Args (Var "a") (Arg (Var "b"))) (Body (St (ASt (Ass (Var "c") (Pos (ECall (Call (Var "diff") (ArgsI (Pos (EVar (Var "a"))) (ArgI (Pos (EVar (Var "b")))))))))) Eps) (Return (Var "c")))) (Procs (Proc (Var "diff") (Args (Var "a") (Arg (Var "b"))) (Body (St (ASt (Ass (Var "c") (Term (EVar (Var "a")) Minus (EVar (Var "b"))))) Eps) (Return (Var "c")))) Nil))
+    it "parses a program that calculates the factorial of the n-th fibonacci number" $ do
+          (parse programParseEOF "" "procedure main (n) {m = fib(n); res = fac(m); return res;} procedure fac (k) {i = 1; fac = 1; if (k < 0) {fac = 0;} else {while (k >= i) {fac = fac*i; i = i+1;} } return fac ; } procedure fib (j) {if (j == 0) { result = 1; } if (j == 1) { result = 1; } if (j > 1) { result = fib(j - 1) + fib(j - 2); } return result;}") `shouldBe` Right (Prog (Main (Arg (Var "n")) (Body (St (ASt (Ass (Var "m") (Pos (ECall (Call (Var "fib") (ArgI (Pos (EVar (Var "n"))))))))) (St (ASt (Ass (Var "res") (Pos (ECall (Call (Var "fac") (ArgI (Pos (EVar (Var "m"))))))))) Eps)) (Return (Var "res")))) (Procs (Proc (Var "fac") (Arg (Var "k")) (Body (St (ASt (Ass (Var "i") (Pos (ENum 1)))) (St (ASt (Ass (Var "fac") (Pos (ENum 1)))) (St (ISt (Elif (BExp (Pos (EVar (Var "k"))) LE (Pos (ENum 0))) (St (ASt (Ass (Var "fac") (Pos (ENum 0)))) Eps) (St (WSt (While (BExp (Pos (EVar (Var "k"))) GEQ (Pos (EVar (Var "i")))) (St (ASt (Ass (Var "fac") (Term (EVar (Var "fac")) Times (EVar (Var "i"))))) (St (ASt (Ass (Var "i") (Term (EVar (Var "i")) Plus (ENum 1)))) Eps)))) Eps))) Eps))) (Return (Var "fac")))) (Procs (Proc (Var "fib") (Arg (Var "j")) (Body (St (ISt (If (BExp (Pos (EVar (Var "j"))) EQQ (Pos (ENum 0))) (St (ASt (Ass (Var "result") (Pos (ENum 1)))) Eps))) (St (ISt (If (BExp (Pos (EVar (Var "j"))) EQQ (Pos (ENum 1))) (St (ASt (Ass (Var "result") (Pos (ENum 1)))) Eps))) (St (ISt (If (BExp (Pos (EVar (Var "j"))) GE (Pos (ENum 1))) (St (ASt (Ass (Var "result") (Term (ECall (Call (Var "fib") (ArgI (Term (EVar (Var "j")) Minus (ENum 1))))) Plus (ECall (Call (Var "fib") (ArgI (Term (EVar (Var "j")) Minus (ENum 2)))))))) Eps))) Eps))) (Return (Var "result")))) Nil)))

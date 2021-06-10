@@ -178,9 +178,9 @@ argsToList (Args v vs) = v:(argsToList vs)
 genRun :: (b -> StateID a) -> b -> Env -> IO a
 genRun eval input env = evalStateT (eval input) env
 
-{-| --------------------------
+{-| -------------------------------------
        Extension 3.1: Procedure Calls
--}  --------------------------
+-}  -------------------------------------
 
 argsListToExp:: ArgList -> [Expression]
 argsListToExp (ArgI ex) = [ex]
@@ -236,9 +236,9 @@ restoreEnv env (Args (Var n) as) = case Map.lookup n env of
                                       Nothing -> restoreEnv env as
                                       (Just val) ->  Map.insert n val (restoreEnv env as)
 
-{-| ------------------------
+{-| ----------------------------
           Extension 3.1: IO
--}  ------------------------
+-}  ----------------------------
 
 
 readEval :: ReadSt -> StateID ()
