@@ -1,5 +1,15 @@
 {-# LANGUAGE DeriveGeneric #-}
 
+{-|
+Module      : Parser
+Description : Parses a MINI program to an abstract syntax tree
+Copyright   : (c) Markus Rinke, 2021
+                  Martin Gius, 2021
+License     : GPL-3
+Maintainer  : martin.gius@tuwien.ac.at
+Stability   : experimental
+
+-}
 module ParseMINI where
 
 import GHC.Generics

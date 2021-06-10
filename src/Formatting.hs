@@ -1,3 +1,13 @@
+{-|
+Module      : Prettyprinter
+Description : Make our abstract syntax tree an instance of Pretty
+Copyright   : (c) Markus Rinke, 2021
+                  Martin Gius, 2021
+License     : GPL-3
+Maintainer  : martin.gius@tuwien.ac.at
+Stability   : experimental
+
+-}
 module Formatting where
 
 import Prettyprinter

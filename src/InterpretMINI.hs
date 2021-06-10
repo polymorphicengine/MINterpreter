@@ -1,3 +1,13 @@
+{-|
+Module      : Interpreter
+Description : A monadic interpreter for MINI programs
+Copyright   : (c) Markus Rinke, 2021
+                  Martin Gius, 2021
+License     : GPL-3
+Maintainer  : martin.gius@tuwien.ac.at
+Stability   : experimental
+
+-}
 module InterpretMINI where
 
 import ParseMINI

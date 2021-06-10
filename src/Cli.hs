@@ -1,3 +1,13 @@
+{-|
+Module      : CLI
+Description : A command line interface
+Copyright   : (c) Markus Rinke, 2021
+                  Martin Gius, 2021
+License     : GPL-3
+Maintainer  : martin.gius@tuwien.ac.at
+Stability   : experimental
+
+-}
 module Cli where
 
 import Options.Applicative

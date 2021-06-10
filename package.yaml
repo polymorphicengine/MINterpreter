@@ -1,10 +1,10 @@
 name:                MINterpreter
 version:             0.1.0.0
-github:              "githubuser/MINterpreter"
+github:              "onthepeakofnormal/MINterpreter"
 license:             BSD3
-author:              "Author name here"
-maintainer:          "example@example.com"
-copyright:           "2021 Author name here"
+author:              "Markus Rinke & Martin Gius"
+maintainer:          "martin.gius@tuwien.ac.at"
+copyright:           "2021 Markus Rinke & Martin Gius"
 
 extra-source-files:
 - README.md
@@ -17,7 +17,7 @@ extra-source-files:
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/githubuser/MINterpreter#readme>
+description:         Please see the README on GitHub at <https://github.com/onthepeakofnormal/MINterpreter#readme>
 
 dependencies:
 - base >= 4.7 && < 5

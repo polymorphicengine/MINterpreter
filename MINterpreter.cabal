@@ -9,7 +9,7 @@ version:        0.1.0.0
 description:    Please see the README on GitHub at <https://github.com/onthepeakofnormal/MINterpreter#readme>
 homepage:       https://github.com/onthepeakofnormal/MINterpreter#readme
 bug-reports:    https://github.com/onthepeakofnormal/MINterpreter/issues
-author:         Markus Rinke, Martin Gius
+author:         Markus Rinke & Martin Gius
 maintainer:     martin.gius@tuwien.ac.at
 copyright:      2021 Markus Rinke & Martin Gius
 license:        BSD3
