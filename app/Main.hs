@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable #-}
-
 module Main where
 
 import ParseMINI(programParseEOF, catch)
