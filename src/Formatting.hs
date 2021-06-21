@@ -53,7 +53,7 @@ instance Pretty Assign where
 
 instance Pretty If where
   pretty (If bool stats) = pretty "if(" <> pretty bool <> pretty "){" <> line <> (indent 2 $ pretty stats) <> line <> pretty '}'
-  pretty (Elif bool stats1 stats2) = pretty "if(" <> pretty bool <> pretty "){" <> line <> (indent 2 $ pretty stats1) <> line <> pretty '}' <> pretty "else{" <> (indent 2 $ pretty stats2) <> line <> pretty '}'
+  pretty (Elif bool stats1 stats2) = pretty "if(" <> pretty bool <> pretty "){" <> line <> (indent 2 $ pretty stats1) <> line <> pretty '}' <> pretty "else{" <> line <> (indent 2 $ pretty stats2) <> line <> pretty '}'
 
 instance Pretty While where
   pretty (While bool stats) = pretty "while(" <> pretty bool <> pretty "){" <> line <> (indent 2 $ pretty stats) <> line <> pretty '}'
